@@ -1,0 +1,18 @@
+{
+    "name": "dcode",
+    "targetType": "staticLibrary",
+	"toolchainRequirements": {
+		"dmd": "no",
+		"gdc": "no",
+		"ldc": ">=1.32.0"
+	},
+    "buildRequirements": [
+        "allowWarnings"
+    ],
+    "buildTypes": {
+        "release": {
+            "buildOptions": ["inline"],
+            "dflags": ["-Os"]
+        }
+    }
+}
