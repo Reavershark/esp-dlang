@@ -1,0 +1,9 @@
+build
+managed_components
+sdkconfig
+
+.dub
+*.o
+docs/
+
+libmain.a
