@@ -6,7 +6,7 @@ FROM ubuntu:22.04 AS build-stage
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
-        build-essential git cmake ninja-build python3 && \
+        build-essential git cmake ninja-build python3 ca-certificates gdmd && \
     rm -rf /var/lib/apt/lists/*
 
 RUN echo -e '#!/usr/bin/env bash\nset -e\nexec $@' > /usr/local/bin/sudo && \
@@ -26,7 +26,7 @@ FROM ubuntu:22.04 AS export-stage
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
-        gcc dub && \
+        gcc dub ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build-stage /opt/llvm-xtensa /opt/llvm-xtensa

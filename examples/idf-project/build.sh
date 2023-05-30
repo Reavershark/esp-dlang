@@ -1,34 +1,44 @@
 #!/usr/bin/env bash
 set -e
 
-RED="\e[31m"
-ENDCOLOR="\e[0m"
+function log
+{
+    RED="\e[31m"
+    ENDCOLOR="\e[0m"
+    echo -e "${RED}${@}${ENDCOLOR}"
+}
+
+function log_separator
+{
+    log "==============================="
+}
 
 if ! command -v idf.py &>/dev/null; then
-    echo -e "${RED}===============================${ENDCOLOR}"
-    echo -e "${RED}Loading esp-idf...${ENDCOLOR}"
+    log_separator
+    log "Loading esp-idf..."
     source /opt/esp-idf/export.sh >/dev/null
 fi
 
-echo -e "${RED}===============================${ENDCOLOR}"
-echo -e "${RED}Building d components... ${ENDCOLOR}"
+log_separator
 
+log "Building d components..."
 for dir in "main"; do
     if [[ -e /opt/ldc-xtensa/bin/ldc2 ]]; then
-        echo -e "${RED}Using local ldc-xtensa install${ENDCOLOR}"
+        log "Using local ldc-xtensa install"
         dub build --root="${dir}" --compiler=/opt/ldc-xtensa/bin/ldc2 --build=release
     elif docker -v &>/dev/null; then
-        echo -e "${RED}Using esp-dlang docker image${ENDCOLOR}"
+        log "Using esp-dlang docker image"
         docker run --rm --tty --volume="${PWD}/${dir}:/work/${dir}" jmeeuws/esp-dlang dub build --root="${dir}" --build=release
     else
-        echo -e "${RED}No local ldc-xtensa or working docker installation was found!${ENDCOLOR}"
-        echo -e "${RED}Aborting...${ENDCOLOR}"
+        log "No local ldc-xtensa or working docker installation was found!"
+        log "Aborting..."
         exit 1
     fi
 done
 
-echo -e "${RED}===============================${ENDCOLOR}"
-echo -e "${RED}Building other idf components... ${ENDCOLOR}"
+log_separator
+
+log "Building other idf components..."
 idf.py build
 
-echo -e "${RED}===============================${ENDCOLOR}"
+log_separator
