@@ -1,9 +1,13 @@
 {
     "name": "main",
     "targetType": "staticLibrary",
+	"preGenerateCommands": [
+		"DC=dmd ./dpp_build.d"
+	],
     "buildRequirements": [
         "allowWarnings"
     ],
+    "importPaths": ["include"],
     "buildTypes": {
         "release": {
             "buildOptions": ["inline"],

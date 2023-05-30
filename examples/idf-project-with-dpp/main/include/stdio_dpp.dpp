@@ -1,0 +1,8 @@
+module stdio_dpp;
+
+alias c_long = long;
+alias c_ulong = ulong;
+
+#include <stdio.h>
+
+// vim: ft=d

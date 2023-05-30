@@ -24,10 +24,23 @@ RUN ./build-toolchain.sh
 
 FROM ubuntu:22.04 AS export-stage
 
+# gcc & phobos for shared libraries for running x86 executables
+# clang is a dependency of dpp
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
-        gcc dub ca-certificates && \
+        gcc libgphobos2 ca-certificates wget \
+        clang libclang-dev && \
+    wget "https://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list" -O /etc/apt/sources.list.d/d-apt.list && \
+    apt-get update --allow-insecure-repositories && \
+    apt-get -y --allow-unauthenticated install --reinstall \
+        d-apt-keyring && \
+    apt-get update && \
+    apt-get -y install \
+        dmd-compiler dub && \
     rm -rf /var/lib/apt/lists/*
+
+RUN ln -s /usr/lib/llvm-14/lib/libclang.so /usr/lib/ && \
+    dub build -y --build=release --compiler=dmd dpp@0.5.2
 
 COPY --from=build-stage /opt/llvm-xtensa /opt/llvm-xtensa
 COPY --from=build-stage /opt/ldc-xtensa /opt/ldc-xtensa
