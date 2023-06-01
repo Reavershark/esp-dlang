@@ -7,7 +7,6 @@
     "buildRequirements": [
         "allowWarnings"
     ],
-    "importPaths": ["include"],
     "buildTypes": {
         "release": {
             "buildOptions": ["inline"],
