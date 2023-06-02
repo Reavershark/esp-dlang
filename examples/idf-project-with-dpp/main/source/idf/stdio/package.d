@@ -14,3 +14,20 @@ extern(C) @trusted
 
     int putchar(scope const char c);
 }
+
+void printfln(Args...)(scope const char* fmt, scope const args)
+{
+    printf(fmt, args);
+    printf("\r\n");
+}
+
+void print(scope const char* str)
+{
+    puts(str);
+}
+
+void println(scope const char* str)
+{
+    puts(str);
+    puts("\r\n");
+}

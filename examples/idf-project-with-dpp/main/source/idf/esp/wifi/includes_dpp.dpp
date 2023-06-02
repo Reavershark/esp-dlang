@@ -2,7 +2,7 @@
 
 #include "esp_wifi.h"
 
-module idf.wifi.includes_dpp;
+module idf.esp.wifi.includes_dpp;
 
 // Required to compile the included code
 
