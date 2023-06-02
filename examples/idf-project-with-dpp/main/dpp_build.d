@@ -4,6 +4,7 @@ import std.algorithm : map;
 import std.array : appender, array;
 import std.file : dirEntries, SpanMode, DirEntry, exists;
 import std.format : f = format;
+import std.parallelism : parallel;
 import std.process : env = environment, execute;
 import std.range : empty;
 import std.stdio;
@@ -18,9 +19,15 @@ void main()
   {
     auto dubRunPart = ["dub", "run", "--yes", "--build=release", "--compiler=dmd", "dpp@0.5.2", "--"];
     auto dppSingleArgsPart = ["-n", "--preprocess-only"];
-    auto result = execute(dubRunPart ~ dppSingleArgsPart ~ defineArgs ~ ignoreSymbolArgs ~ includeArgs ~ fileList);
-    if (result.status != 0)
-        throw new Exception(f!"Error executing command: %s"(result.output));
+    auto commandWithoutFiles = dubRunPart ~ dppSingleArgsPart ~ defineArgs ~ ignoreSymbolArgs ~ includeArgs;
+    foreach(file; parallel(fileList))
+    {
+        writefln!"Processing file \"%s\""(file);
+        auto result = execute(commandWithoutFiles ~ file);
+        if (result.status != 0)
+            throw new Exception(f!"Error executing command: %s"(result.output));
+        writefln!"Finished processing file \"%s\""(file);
+    }
   }
 }
 
