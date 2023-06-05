@@ -13,10 +13,14 @@ RUN echo -e '#!/usr/bin/env bash\nset -e\nexec $@' > /usr/local/bin/sudo && \
     chmod +x /usr/local/bin/sudo
 
 WORKDIR /build
-COPY ./build-toolchain.sh /build/build-toolchain.sh
-RUN chmod +x build-toolchain.sh
 
-RUN ./build-toolchain.sh
+COPY ./build-llvm.sh /build/build-llvm.sh
+RUN chmod +x build-llvm.sh && \
+    ./build-llvm.sh
+
+COPY ./build-ldc.sh /build/build-ldc.sh
+RUN chmod +x build-ldc.sh && \
+    ./build-ldc.sh
 
 ################
 # export stage #
