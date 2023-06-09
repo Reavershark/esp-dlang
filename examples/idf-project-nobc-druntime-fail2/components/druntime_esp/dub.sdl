@@ -1,0 +1,7 @@
+name "druntime_esp"
+targetType "staticLibrary"
+buildRequirements "allowWarnings"
+buildType "release" {
+	buildOptions "inline"
+	dflags "-Os"
+}
