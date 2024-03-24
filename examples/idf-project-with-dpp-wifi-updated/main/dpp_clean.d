@@ -1,8 +1,7 @@
 #!/usr/bin/env rdmd
 
-import std.file;
-import std.range;
-import std.stdio;
+import std.file : dirEntries, DirEntry, remove, SpanMode;
+import std.stdio : writeln;
 
 void main()
 {
