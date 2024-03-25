@@ -28,7 +28,7 @@ else
 // Implement broken log macros as templates //
 ///                                        ///
 
-import idf._internal.helper_templates : StringzPtrOf;
+import idf._internal.helper_templates : stringzPtrOf;
 
 private template EspLogFuncTemplateImpl(string LogLevelString)
 {
@@ -43,7 +43,7 @@ private template EspLogFuncTemplateImpl(string LogLevelString)
         {
             alias LogLevelColor = mixin("LOG_COLOR_" ~ LogLevelString[0]);
             enum string OuterFormat = LogLevelColor ~ "E (%u) %s " ~ LOG_RESET_COLOR ~ "\n";
-            esp_log_write(LogLevelAsEnumMember, StringzPtrOf!Tag, OuterFormat, esp_log_timestamp(), StringzPtrOf!Tag, args);
+            esp_log_write(LogLevelAsEnumMember, stringzPtrOf!Tag, OuterFormat, esp_log_timestamp(), stringzPtrOf!Tag, args);
         }
     }
 

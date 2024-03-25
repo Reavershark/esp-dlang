@@ -1,0 +1,4 @@
+// vim: ft=d
+module idf.driver.dac.dac_dpp;
+
+#include <driver/dac.h>

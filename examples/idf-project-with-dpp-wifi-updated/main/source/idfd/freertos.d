@@ -2,7 +2,7 @@ module idfd.freertos;
 
 import idf.freertos;
 
-import idfd.utils.string : IsAscii, Capitalized;
+import idfd.util.string : capitalized;
 
 @safe:
 
@@ -38,5 +38,5 @@ pure
 
     // Emits IsMsecsAcccurate, IsSecondsAccurate, ...
     static foreach(string timeFunc; ["msecs", "seconds", "minutes", "hours", "days"])
-        mixin("enum bool Is" ~ Capitalized!timeFunc ~ "Accurate = isTimeFuncAccurate(&" ~ timeFunc ~ ");");
+        mixin("enum bool Is" ~ capitalized!timeFunc ~ "Accurate = isTimeFuncAccurate(&" ~ timeFunc ~ ");");
 }

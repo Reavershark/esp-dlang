@@ -3,10 +3,6 @@ module idf.esp_wifi.esp_wifi_dpp;
 
 #include "esp_wifi.h"
 
-// Required to compile the included code
-alias c_long = long;
-alias c_ulong = ulong;
-
 // These mixins failed previously because they were placed too high up in the file
 mixin(enumMixinStr_WIFI_DYNAMIC_TX_BUFFER_NUM);
 mixin(enumMixinStr_WIFI_DEFAULT_RX_BA_WIN);

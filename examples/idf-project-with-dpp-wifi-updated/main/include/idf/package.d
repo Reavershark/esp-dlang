@@ -1,5 +1,6 @@
 module idf;
 
+public import idf.driver;
 public import idf.esp_err;
 public import idf.esp_event;
 public import idf.esp_log;

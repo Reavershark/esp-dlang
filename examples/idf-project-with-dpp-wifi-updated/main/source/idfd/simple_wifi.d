@@ -1,6 +1,6 @@
 module idfd.simple_wifi;
 
-import idfd.utils.string : StringzOf;
+import idfd.util.string : stringzOf;
 import idfd.nvs_flash : initNvsFlash, nvsFlashInitialized;
 
 import idf.esp_err : ESP_OK;
@@ -56,11 +56,11 @@ public void simpleWifiInit(string ssid, string password = "")() @trusted
     assert(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifiEventHandler, null, &instance_got_ip) == ESP_OK);
 
     wifi_config_t wifi_config;
-    enum immutable(ubyte)[] ssid_bytes = cast(immutable(ubyte)[]) StringzOf!ssid;
+    enum immutable(ubyte)[] ssid_bytes = cast(immutable(ubyte)[]) stringzOf!ssid;
     wifi_config.sta.ssid[] = ssid_bytes[];
     static if (password.length >= 0)
     {
-        enum immutable(ubyte)[] password_bytes = cast(immutable(ubyte)[]) StringzOf!password;
+        enum immutable(ubyte)[] password_bytes = cast(immutable(ubyte)[]) stringzOf!password;
         wifi_config.sta.password[] = password_bytes[];
         wifi_config.sta.threshold.authmode = WIFI_AUTH_WEP; // Minimum accepted network security
     }
