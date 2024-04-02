@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+export IDF_TARGET=$1
+
 function log
 {
     RED="\e[31m"
@@ -45,6 +47,7 @@ done
 log_separator
 
 log "Building other idf components..."
+idf.py set-target $IDF_TARGET
 idf.py build
 
 log_separator
