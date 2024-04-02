@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+elf = "examples/idf-project/build/example.elf"
+firmware = "examples/idf-project/build/example.bin"
