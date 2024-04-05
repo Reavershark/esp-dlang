@@ -1,0 +1,4 @@
+name "main"
+targetType "library"
+buildRequirements "allowWarnings"
+dflags "--mtriple=xtensa-esp32-elf" "--mcpu=esp32" "--betterC"
