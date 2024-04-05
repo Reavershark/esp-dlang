@@ -9,7 +9,7 @@ function gcl
 
 [[ -d ldc-source ]] && rm -rf ldc-source
 [[ -d ldc-build ]] && rm -rf ldc-build
-gcl --branch "v1.33.0-beta1" "https://github.com/ldc-developers/ldc.git" ldc-source
+gcl --branch "v1.37.0" "https://github.com/ldc-developers/ldc.git" ldc-source
 cmake \
     -S ldc-source \
     -B ldc-build \
