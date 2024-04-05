@@ -9,7 +9,7 @@ function gcl
 
 [[ -d llvm-source ]] && rm -rf llvm-source
 [[ -d llvm-build ]] && rm -rf llvm-build
-gcl --branch "esp-15.0.0-20230404" "https://github.com/espressif/llvm-project.git" llvm-source
+gcl --branch "esp-16.0.4-20231113" "https://github.com/espressif/llvm-project.git" llvm-source
 cmake \
     -S llvm-source/llvm \
     -B llvm-build \
