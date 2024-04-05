@@ -1,0 +1,4 @@
+// vim: ft=d
+module idf.driver.i2s_std.i2s_std_dpp;
+
+#include <driver/i2s_std.h>

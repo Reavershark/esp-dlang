@@ -1,3 +1,3 @@
 module idf.driver;
 
-public import idf.driver.dac;
+public import idf.driver.dac_continuous;

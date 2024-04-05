@@ -100,11 +100,14 @@ string[] includeArgs()
 
     // Target-specific includes
     res ~= f!"%s/components/soc/%s/include"(jsonRoot["idf_path"].str, jsonRoot["target"].str);
-    res ~= [
-        jsonRoot["c_compiler"].str.split("/")[0 .. $ - 2].join("/"),
-        jsonRoot["monitor_toolprefix"].str[0 .. $ - 1],
-        "include"
-    ].join("/");
+
+    string[] toolChainIncludePath = jsonRoot["c_compiler"].str.split("/")[0 .. $ - 2];
+    toolChainIncludePath ~= toolChainIncludePath[$ - 1];
+    toolChainIncludePath ~= "include";
+    res ~= toolChainIncludePath.join("/");
+
+    import std.algorithm : each;
+    res.each!writeln;
 
     return res
         .map!((string path) => "--include-path=" ~ path)
