@@ -1,71 +1,184 @@
-# ###############
-# # build stage #
-# ###############
-# 
-# FROM ubuntu:22.04 AS build-stage
-# 
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
-#     apt-get -y install --no-install-recommends \
-#         build-essential git cmake ninja-build python3 ca-certificates gdmd && \
-#     rm -rf /var/lib/apt/lists/*
-# 
-# RUN echo -e '#!/usr/bin/env bash\nset -e\nexec $@' > /usr/local/bin/sudo && \
-#     chmod +x /usr/local/bin/sudo
-# 
-# WORKDIR /build
-# 
-# COPY ./build-llvm.sh /build/build-llvm.sh
-# RUN chmod +x build-llvm.sh && \
-#     ./build-llvm.sh
-# 
-# COPY ./build-ldc.sh /build/build-ldc.sh
-# RUN chmod +x build-ldc.sh && \
-#     ./build-ldc.sh
-# 
-# ################
-# # export stage #
-# ################
-# 
-# FROM ubuntu:22.04 AS export-stage
-# 
-# # gcc & phobos for shared libraries for running x86 executables
-# # clang is a dependency of dpp
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
-#     apt-get -y install --no-install-recommends \
-#         gcc libgphobos2 ca-certificates wget \
-#         clang libclang-dev && \
-#     wget "https://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list" -O /etc/apt/sources.list.d/d-apt.list && \
-#     apt-get update --allow-insecure-repositories && \
-#     apt-get -y --allow-unauthenticated install --reinstall \
-#         d-apt-keyring && \
-#     apt-get update && \
-#     apt-get -y install \
-#         dmd-compiler dub && \
-#     rm -rf /var/lib/apt/lists/*
-# 
-# RUN ln -s /usr/lib/llvm-14/lib/libclang.so /usr/lib/ && \
-#     dub build -y --build=release --compiler=dmd dpp@0.5.2
-# 
-# COPY --from=build-stage /opt/llvm-xtensa /opt/llvm-xtensa
-# COPY --from=build-stage /opt/ldc-xtensa /opt/ldc-xtensa
-# 
-# ENV DC=/opt/ldc-xtensa/bin/ldc2
-# COPY ./ldc2.conf /opt/ldc-xtensa/etc/ldc2.conf
-# 
-# WORKDIR /work
+# Todo: remove python where possible (ldc bootstrap?)
 
-FROM jmeeuws/esp-dlang:v1.1.0
+ARG LLVM_VERSION="esp-16.0.4-20231113"
+ARG LDC_VERSION="v1.37.0"
+ARG ESP_IDF_VERSION="v5.2.1"
 
-RUN rm -rf /root/.cache && \
-    rm -rf /root/.dub && \
-    dub build -y --build=release --compiler=dmd dpp@0.5.2
+# Build llvm-xtensa
+FROM ubuntu:22.04 AS build-stage-llvm-xtensa
+ARG LLVM_VERSION
 
 RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        ca-certificates git \
+        binutils gcc g++ gdmd cmake ninja-build python3 && \
+    rm -rf /var/lib/apt/lists/*
+ENV CC=gcc \
+    CXX=g++
+
+WORKDIR /build
+RUN git clone \
+        --recurse-submodules \
+        --depth 1 \
+        --branch "${LLVM_VERSION}" \
+        "https://github.com/espressif/llvm-project.git" \
+        llvm-source && \
+    cmake \
+        -S llvm-source/llvm \
+        -B llvm-build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/llvm-xtensa \
+        -DCMAKE_C_COMPILER="${CC}" \
+        -DCMAKE_CXX_COMPILER="${CXX}" \
+        -DCMAKE_ASM_COMPILER="${CC}" \
+        -DLLVM_ENABLE_RTTI=ON \ 
+        -DLLVM_BUILD_LLVM_DYLIB=ON \
+        -DLLVM_LINK_LLVM_DYLIB=ON \
+        -DLLVM_INCLUDE_BENCHMARKS=OFF \
+        -DLLVM_BUILD_UTILS=OFF \
+        -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="Xtensa" \
+        -DLLVM_ENABLE_PROJECTS="clang;lld" && \
+    cmake --build llvm-build && \
+    cmake --install llvm-build && \
+    rm -r llvm-source llvm-build
+
+
+# Build ldc-xtensa-bootstrap
+FROM ubuntu:22.04 AS build-stage-ldc-xtensa-bootstrap
+ARG LDC_VERSION
+
+COPY --from=build-stage-llvm-xtensa /opt/llvm-xtensa /opt/llvm-xtensa
+RUN echo "/opt/llvm-xtensa/lib" > /etc/ld.so.conf.d/llvm-xtensa.conf && \
+    ldconfig
+ENV PATH="/opt/llvm-xtensa/bin:${PATH}" \
+    CC=clang \
+    CXX=clang++
+
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        ca-certificates git \
+        binutils gdmd cmake ninja-build python3 && \
+    rm -rf /var/lib/apt/lists/*
+ENV DC=gdmd
+
+RUN git clone \
+        --recurse-submodules \
+        --depth 1 \
+        --branch "${LDC_VERSION}" \
+        "https://github.com/ldc-developers/ldc.git" \
+        ldc-source && \
+    cmake \
+        -S ldc-source \
+        -B ldc-build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/opt/ldc-xtensa-bootstrap \
+        -DCMAKE_C_COMPILER="${CC}" \
+        -DCMAKE_CXX_COMPILER="${CXX}" \
+        -DCMAKE_ASM_COMPILER="${CC}" \
+        -DD_COMPILER="${DC}" \
+        -DLLVM_ROOT_DIR=/opt/llvm-xtensa && \
+    cmake --build ldc-build && \
+    cmake --install ldc-build && \
+    rm -r ldc-source ldc-build
+
+
+# Build ldc-xtensa
+FROM ubuntu:22.04 AS build-stage-ldc-xtensa
+ARG LDC_VERSION
+
+COPY --from=build-stage-llvm-xtensa /opt/llvm-xtensa /opt/llvm-xtensa
+RUN echo "/opt/llvm-xtensa/lib" > /etc/ld.so.conf.d/llvm-xtensa.conf && \
+    ldconfig
+ENV PATH="/opt/llvm-xtensa/bin:${PATH}" \
+    CC=clang \
+    CXX=clang++
+
+COPY --from=build-stage-ldc-xtensa-bootstrap /opt/ldc-xtensa-bootstrap /opt/ldc-xtensa-bootstrap
+RUN echo "/opt/ldc-xtensa-bootstrap/lib" > /etc/ld.so.conf.d/ldc-xtensa-bootstrap.conf && \
+    ldconfig
+ENV PATH="/opt/ldc-xtensa-bootstrap/bin:${PATH}" \
+    DC="ldmd2"
+
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        ca-certificates git \
+        binutils libc-dev libstdc++-11-dev libgcc-11-dev libgphobos2 cmake ninja-build && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone \
+        --recurse-submodules \
+        --depth 1 \
+        --branch "${LDC_VERSION}" \
+        "https://github.com/ldc-developers/ldc.git" \
+        ldc-source && \
+    cmake \
+        -S ldc-source \
+        -B ldc-build \
+        -G Ninja \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/opt/ldc-xtensa \
+        -DCMAKE_C_COMPILER="${CC}" \
+        -DCMAKE_CXX_COMPILER="${CXX}" \
+        -DCMAKE_ASM_COMPILER="${CC}" \
+        -DD_COMPILER="${DC}" \
+        -DLLVM_ROOT_DIR=/opt/llvm-xtensa && \
+    cmake --build ldc-build && \
+    cmake --install ldc-build && \
+    rm -r ldc-source ldc-build
+
+
+# Trim llvm directory a bit
+FROM build-stage-llvm-xtensa AS build-stage-llvm-xtensa-trimmed
+RUN cd /opt/llvm-xtensa && \
+    rm -r \
+        include libexec share \
+        bin/c-index-test bin/llvm-exegesis \
+        lib/*.a \
+        lib/cmake lib/libear lib/libscanbuild
+
+
+# Construct export stage
+FROM ubuntu:22.04 AS export-stage
+ARG ESP_IDF_VERSION
+
+COPY --from=build-stage-llvm-xtensa-trimmed /opt/llvm-xtensa /opt/llvm-xtensa
+RUN echo "/opt/llvm-xtensa/lib" > /etc/ld.so.conf.d/llvm-xtensa.conf && \
+    ldconfig
+ENV PATH="/opt/llvm-xtensa/bin:${PATH}" \
+    CC=clang \
+    CXX=clang++
+
+COPY --from=build-stage-ldc-xtensa /opt/ldc-xtensa /opt/ldc-xtensa
+RUN echo "/opt/ldc-xtensa/lib" > /etc/ld.so.conf.d/ldc-xtensa.conf && \
+    ldconfig
+ENV PATH="/opt/ldc-xtensa/bin:${PATH}" \
+    DC="ldc2"
+
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        ca-certificates wget \
+        binutils libc-dev libstdc++-11-dev libgcc-11-dev \
+        git python3 python-is-python3 python3-pip python3-venv cmake ninja-build libusb-1.0-0 && \
+    wget "https://netcologne.dl.sourceforge.net/project/d-apt/files/d-apt.list" -O /etc/apt/sources.list.d/d-apt.list && \
+    apt-get update --allow-insecure-repositories && \
+    apt-get -y --allow-unauthenticated install \
+        d-apt-keyring && \
+    apt-get update && \
     apt-get -y install \
-        git \
-        python3 python3-pip python-is-python3 \
-        libusb-1.0-0 cmake && \
-    rm -rf /var/lib/apt/lists/* && \
-    cd /opt && git clone --recurse-submodules --branch v4.4.7 --depth 1 https://github.com/espressif/esp-idf.git && \
-    /opt/esp-idf/install.sh && \
-    echo "\necho Sourcing /opt/esp-idf/export.sh\nsource /opt/esp-idf/export.sh >/dev/null" >> /etc/bash.bashrc
+        dub && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN cd /opt && \
+    git clone \
+        --recurse-submodules \
+        --depth 1 \
+        --branch "${ESP_IDF_VERSION}" \
+        "https://github.com/espressif/esp-idf.git" \
+        esp-idf && \
+    /opt/esp-idf/install.sh
+
+WORKDIR /work
+
+# echo "\necho Sourcing /opt/esp-idf/export.sh\nsource /opt/esp-idf/export.sh >/dev/null" >> /etc/bash.bashrc
