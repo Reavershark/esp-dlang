@@ -8,7 +8,7 @@ DFLAGS+=" --preview=dip1000"
 set -e
 
 # Append default flags based on target
-DFLAGS+=" $(dflags.py "${target}")"
+DFLAGS+=" $(cd "$(dirname "${BASH_SOURCE[0]}")" && dflags.py "${target}")"
 export DFLAGS
 
 dub build \
