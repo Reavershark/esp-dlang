@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: jmeeuws/esp-dlang
+      options: --user=root
     defaults:
       run:
         shell: bash
