@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: jmeeuws/esp-dlang
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - name: Build examples/example
