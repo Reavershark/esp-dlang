@@ -1,4 +1,4 @@
-name: Wokwi-CI: Build and test examples
+name: "Wokwi-CI: Build and test examples"
 
 on: [push]
 
