@@ -2,3 +2,5 @@
 /llvm-build
 /ldc-source
 /ldc-build
+
+__pycache__

@@ -1,6 +1,12 @@
-#!/usr/bin/env sh
-
+#!/usr/bin/env bash
 docker run \
-    --rm -it \
+    --rm \
+    --interactive --tty \
+    --volume="${PWD}":/work \
     jmeeuws/esp-dlang \
-    bash
+    bash -c " \
+        echo Sourcing /opt/esp-idf/export.sh && \
+        source /opt/esp-idf/export.sh >/dev/null && \
+        \$SHELL \
+    "
+sudo chown -R $UID .

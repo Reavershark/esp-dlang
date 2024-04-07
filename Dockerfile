@@ -179,6 +179,8 @@ RUN cd /opt && \
         esp-idf && \
     /opt/esp-idf/install.sh
 
+COPY ./dflags.py /opt/ldc-xtensa/bin/dflags.py
+
 WORKDIR /work
 
 # echo "\necho Sourcing /opt/esp-idf/export.sh\nsource /opt/esp-idf/export.sh >/dev/null" >> /etc/bash.bashrc

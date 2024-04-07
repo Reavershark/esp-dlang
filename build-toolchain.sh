@@ -75,3 +75,5 @@ cmake \
     -DLLVM_ROOT_DIR=/opt/llvm-xtensa
 cmake --build ldc-build
 cmake --install ldc-build
+
+cp ./dflags.py /opt/ldc-xtensa/bin/

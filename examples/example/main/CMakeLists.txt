@@ -6,7 +6,7 @@ idf_component_register(
 add_custom_target(
     dcode
     ALL
-    dbuild.sh
+    "${PROJECT_DIR}/dbuild.sh"
     WORKING_DIRECTORY "${COMPONENT_DIR}"
     USES_TERMINAL
     DEPENDS "${COMPONENT_LIB}"
