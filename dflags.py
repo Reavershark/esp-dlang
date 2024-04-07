@@ -1,36 +1,50 @@
 #!/usr/bin/env python3
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 import json
 import sys
 
-def get_default_esp_idf_flags(target: str):
-    return " ".join(list_default_esp_idf_flags(target))
+def get_default_esp_idf_flags():
+    return " ".join(list_default_esp_idf_flags())
 
-def list_default_esp_idf_flags(target: str):
+def list_default_esp_idf_flags():
     dflags = []
-    if target == "esp32":
-        dflags += ["--betterC", "--mcpu=esp32", "--mtriple=xtensa-esp32-elf"]
-        dflags += ["-P-w"] # Supress C preprocessor warnings
-        dflags += [f"-P-D{s}" for s in list_importc_defines()]
-        dflags += [f"-P-D{s}" for s in list_esp_idf_importc_defines()]
-        dflags += [f"-P-I{s}" for s in list_esp_idf_importc_include_paths()]
-    else:
-        raise Exception(f"Unsupported target {target}")
+    dflags += ["--betterC"]
+    dflags += get_esp_idf_ldc_target_flags()
+    dflags += ["-P-w"] # Supress C preprocessor warnings
+    dflags += [f"-P-D{s}" for s in list_importc_defines()]
+    dflags += [f"-P-D{s}" for s in list_esp_idf_importc_defines()]
+    dflags += [f"-P-I{s}" for s in list_esp_idf_importc_include_paths()]
     return dflags
 
-def list_importc_defines():
+def list_importc_defines() -> List[str]:
     return [
         "__IMPORTC__"
     ]
 
-def list_esp_idf_importc_defines():
+def get_esp_idf_project_description() -> Dict:
+    project_description_path = Path("build", "project_description.json")
+    if not project_description_path.exists():
+        raise Exception(f"File {project_description_path} does not exist. Configure project first?")
+    return json.load(open(project_description_path, "r"))
+
+def get_esp_idf_target() -> str:
+    return get_esp_idf_project_description()["target"]
+
+def get_esp_idf_ldc_target_flags() -> List[str]:
+    target = get_esp_idf_target()
+    if target in ["esp32", "esp32s2", "esp32s3"]:
+        return [f"--mcpu={target}", f"--mtriple=xtensa-{target}-elf"]
+    else:
+        raise Exception(f"Unsupported target {target}")
+
+def list_esp_idf_importc_defines() -> List[str]:
     return [
         "__XTENSA__",
         "__GLIBC_USE(arg)=0"
     ]
 
-def list_esp_idf_importc_include_paths():
+def list_esp_idf_importc_include_paths() -> List[str]:
     project_description_path = Path("build", "project_description.json")
     if not project_description_path.exists():
         raise Exception(f"File {project_description_path} does not exist. Configure project first?")
@@ -60,7 +74,4 @@ def list_esp_idf_importc_include_paths():
     return res
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: dflags.py [target]")
-        sys.exit(1)
-    print(get_default_esp_idf_flags(sys.argv[1]))
+    print(get_default_esp_idf_flags())

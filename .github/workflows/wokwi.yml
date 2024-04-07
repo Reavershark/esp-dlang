@@ -1,0 +1,36 @@
+name: Wokwi-CI: Build and test examples
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [esp32, esp32s2, esp32s3]
+    runs-on: ubuntu-latest
+    container:
+      image: jmeeuws/esp-dlang
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build examples/example
+        run: |
+          source /opt/esp-idf/export.sh >/dev/null
+          ulimit -n 4096
+          cd ./examples/example/
+          idf.py set-target ${{ matrix.target }}
+          idf.py build
+      - name: Setup CI files
+        run: |
+          cat > wokwi.toml <<EOF
+          [wokwi]
+          version = 1
+          elf = "./examples/example/build/example.elf"
+          firmware = "./examples/example/build/example.bin"
+          EOF
+          cp ./.github/workflows/wokwi/diagram-${{ matrix.target }}.json ./diagram.json
+      - uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          timeout: 5000
+          expect_text: 'Hello from dlang!'
