@@ -5,40 +5,45 @@
 
 class VGA : public I2S
 {
-  public:
-	VGA(const int i2sIndex = 0);
-	void setLineBufferCount(int lineBufferCount);
-	bool init(const Mode &mode, const int *pinMap, const int bitCount, const int clockPin = -1);
+// Static fields
+public:
+    static const Mode MODE320x240;
 
-	static const Mode MODE320x240;
+// Instance fields
+public:
+    Mode mode;
 
-	Mode mode;
+protected:
+    int lineBufferCount;
+    int vsyncPin;
+    int hsyncPin;
+    int currentLine;
+    long vsyncBit;
+    long hsyncBit;
+    long vsyncBitI;
+    long hsyncBitI;
 
-	virtual int bytesPerSample() const = 0;
+    int totalLines;
+    volatile bool vSyncPassed;
 
-  protected:
-	virtual void initSyncBits() = 0;
-	virtual long syncBits(bool h, bool v) = 0;
- 
-	int lineBufferCount;
-	int vsyncPin;
-	int hsyncPin;
-	int currentLine;
-	long vsyncBit;
-	long hsyncBit;
-	long vsyncBitI;
-	long hsyncBitI;
+    void *vSyncInactiveBuffer;
+    void *vSyncActiveBuffer;
+    void *inactiveBuffer;
+    void *blankActiveBuffer;
 
-	int totalLines;
-	volatile bool vSyncPassed;
+// Instance methods
+public:
+    VGA(const int i2sIndex = 0);
+    void setLineBufferCount(int lineBufferCount);
+    bool init(const Mode &mode, const int *pinMap, const int bitCount, const int clockPin = -1);
+    virtual int bytesPerSample() const = 0;
 
-	void *vSyncInactiveBuffer;
-	void *vSyncActiveBuffer;
-	void *inactiveBuffer;
-	void *blankActiveBuffer;
+protected:
+    virtual void initSyncBits() = 0;
+    virtual long syncBits(bool h, bool v) = 0;
 
-	void allocateLineBuffers(const int lines);
-	virtual void allocateLineBuffers();
-	virtual void allocateLineBuffers(void **frameBuffer);
-	virtual void propagateResolution(const int xres, const int yres) = 0;
+    void allocateLineBuffers(const int lines);
+    virtual void allocateLineBuffers();
+    virtual void allocateLineBuffers(void **frameBuffer);
+    virtual void propagateResolution(const int xres, const int yres) = 0;
 };
