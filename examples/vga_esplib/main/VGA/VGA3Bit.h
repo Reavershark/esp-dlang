@@ -41,6 +41,8 @@ public:
 		return VGA::init(mode, pinMap, 8, clockPin);
 	}
 
+    // VGA overrides
+
 	virtual void initSyncBits() override // Overrides VGA::initSyncBits
 	{
 		hsyncBitI = mode.hSyncPolarity ? 0x40 : 0;
@@ -49,7 +51,7 @@ public:
 		vsyncBit = vsyncBitI ^ 0x80;
 		SBits = hsyncBitI | vsyncBitI;
 	}
-		
+
 	virtual long syncBits(bool hSync, bool vSync) override // Overrides VGA::syncBits
 	{
 		return ((hSync ? hsyncBit : hsyncBitI) | (vSync ? vsyncBit : vsyncBitI)) * 0x1010101;
@@ -60,24 +62,26 @@ public:
 		return 1;
 	}
 
-	virtual float pixelAspect() const override // Overrides Graphics::pixelAspect
-	{
-		return 1;
-	}
-
 	virtual void propagateResolution(const int xres, const int yres) override // Overrides VGA::propagateResolution
 	{
 		setResolution(xres, yres);
 	}
 
-    virtual Color **allocateFrameBuffer() override // Overrides Graphics::allocateFrameBuffer
-	{
-		return (Color **)DMABufferDescriptor::allocateDMABufferArray(yres, mode.hRes * bytesPerSample(), true, syncBits(false, false));
-	}
-
 	virtual void allocateLineBuffers() override // Overrides VGA::allocateLineBuffers()
 	{
 		VGA::allocateLineBuffers((void **)frameBuffers[0]);
+	}
+
+    // Graphics overrides
+
+	virtual float pixelAspect() const override // Overrides Graphics::pixelAspect
+	{
+		return 1;
+	}
+
+    virtual Color **allocateFrameBuffer() override // Overrides Graphics::allocateFrameBuffer
+	{
+		return (Color **)DMABufferDescriptor::allocateDMABufferArray(yres, mode.hRes * bytesPerSample(), true, syncBits(false, false));
 	}
 
 	virtual void show(bool vSync = false) override // Overrides Graphics::show

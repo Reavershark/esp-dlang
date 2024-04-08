@@ -2,6 +2,7 @@
 
 class Mode
 {
+// Instance fields
 public:
     int hFront, hSync, hBack, hRes;
     int vFront, vSync, vBack, vRes;
@@ -12,6 +13,8 @@ public:
     float aspect;
     int activeLineCount;
 
+// Instance methods
+public:
     Mode(
         const int hFront = 0, const int hSync = 0, const int hBack = 0, const int hRes = 0,
         const int vFront = 0, const int vSync = 0, const int vBack = 0, const int vRes = 0,

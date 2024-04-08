@@ -42,11 +42,11 @@ public:
     bool initParallelOutputMode(const int *pinMap, long APLLFreq = 1000000, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
     bool initSerialOutputMode(int dataPin, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
     bool initParallelInputMode(const int *pinMap, long sampleRate = 1000000, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
-    virtual DMABufferDescriptor *firstDescriptorAddress() const;
+    DMABufferDescriptor *firstDescriptorAddress() const;
 
     void allocateDMABuffers(int count, int bytes);
     void deleteDMABuffers();
-    virtual void getClockSetting(long *sampleRate, int *n, int *a, int *b, int *div);
+    void getClockSetting(long *sampleRate, int *n, int *a, int *b, int *div);
 
   protected:
     void setAPLLClock(long sampleRate, int bitCount);
