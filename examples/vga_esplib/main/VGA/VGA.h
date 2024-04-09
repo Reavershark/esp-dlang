@@ -34,7 +34,6 @@ protected:
 // Instance methods
 public:
     VGA(const int i2sIndex = 0);
-    void setLineBufferCount(int lineBufferCount);
     bool init(const Mode &mode, const int *pinMap, const int bitCount, const int clockPin = -1);
     virtual int bytesPerSample() const = 0;
 
@@ -42,8 +41,7 @@ protected:
     virtual void initSyncBits() = 0;
     virtual long syncBits(bool h, bool v) = 0;
 
-    void allocateLineBuffers(const int lines);
-    virtual void allocateLineBuffers();
+    virtual void allocateLineBuffers() = 0;
     virtual void allocateLineBuffers(void **frameBuffer);
     virtual void propagateResolution(const int xres, const int yres) = 0;
 };

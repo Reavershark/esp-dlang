@@ -1,0 +1,189 @@
+module app.app;
+
+import app.video_timings;
+
+#include periph_module_enable
+#include "esp_heap_caps.h"
+#include lldesc_t
+
+extern(C)
+void* malloc(size_t size);
+
+alias Color = ubyte;
+struct FrameBuffer
+{
+// Instance fields
+public:
+    Color[] arr;
+    uint width, height;
+
+// Static methods
+public:
+    static FrameBuffer create(uint width, uint height)
+    in (width > 0 && height > 0)
+    {
+        this.width = width;
+        this.height = height;
+
+        Color* ptr = cast(Color*) malloc(sizeof(Color) * width * height);
+        assert(ptr);
+        return FrameBuffer(ptr[0 .. width * height]);
+    }
+
+// Instance methods
+public:
+    void fill(Color fillColor) pure
+    {
+        foreach (ref Color; arr)
+            Color = fillColor;
+    }
+
+    Color[] getLine(uint line)
+    in (line < height)
+    {
+        return arr[line * width .. line * width + width];
+    }
+}
+
+extern(C)
+void app_main()
+{
+    // Inputs
+    immutable int redPin   = 14;
+    immutable int greenPin = 27;
+    immutable int bluePin  = 16;
+    immutable int hsyncPin = 25;
+    immutable int vsyncPin = 26;
+    immutable VideoTimings vt = videoTimings320x240;
+    enum uint frameBufferCount = 1;
+    immutable uint i2sIndex = 1; // Only 1 can output 8bit
+    
+    // Immutable state
+    immutable ulong totalLines = vt.v.total;
+    immutable ulong width = vt.activeWidth;
+    immutable ulong height = vt.activeHeight;
+    immutable uint lineBufferCount = 8;
+    immutable uint bytesPerSample = 1;
+
+    // Mutable state
+    lldesc_t[] dmaBufferDescriptors;
+    int dmaBufferDescriptorActive = 0;
+    stopSignal = false;
+    ubyte[] vSyncInactiveBuffer;
+    ubyte[] vSyncActiveBuffer;
+    ubyte[] inactiveBuffer;
+    ubyte[] blankActiveBuffer;
+
+    bool vsyncPassed = false;
+    long vsyncBitI = vt.h.polarity ? 0x40 : 0;
+    long hsyncBitI = vt.v.polarity ? 0x80 : 0;
+    long vsyncBit = hsyncBitI ^ 0x40;
+    long hsyncBit = vsyncBitI ^ 0x80;
+    Color sBits = hsyncBitI | vsyncBitI;
+
+    uint currentLine = 0;
+
+    FrameBuffer[frameBufferCount] frameBuffers;
+    uint frontBuffer = 0;
+    uint backBuffer = 0;
+
+
+    // Allocate framebuffers
+    foreach(ref fb; frameBuffers)
+    {
+        fb = FrameBuffer.create(width, height);
+        fb.fill(0);
+    }
+
+    // Allocate dma linebuffers
+    {
+        auto frameBuffer = frameBuffers[0];
+
+        const periph_module_t deviceModule[2] = {
+            PERIPH_I2S0_MODULE,
+            PERIPH_I2S1_MODULE
+        };
+        periph_module_enable(deviceModule[i2sIndex]);
+
+        T[] callocDma(T)(size_t size, bool clear = true, T clearValue = 0)
+        if (!is(T == void))
+        in (size > 0)
+        {
+            T* ptr = cast(T*) heap_caps_malloc(size / sizeof(T), MALLOC_CAP_DMA);
+            assert(ptr);
+            T[] slice = ptr[0 .. size];
+            if (clear)
+                foreach(ref el; slice)
+                    el = clearValue;
+            return slice;
+        }
+
+        assert(vt.inactiveWidth % 4 == 0);
+        vSyncInactiveBuffer = dallocDma!ubyte(vt.inactiveWidth * bytesPerSample);
+        vSyncActiveBuffer   = dallocDma!ubyte(vt.h.res * bytesPerSample);
+        inactiveBuffer      = dallocDma!ubyte(vt.inactiveWidth * bytesPerSample);
+        blankActiveBuffer   = dallocDma!ubyte(vt.h.res * bytesPerSample);
+
+        if (bytesPerSample == 1)
+        {
+            foreach (i; 0 .. vt.inactiveWidth)
+            {
+                auto chosenHsyncBit = (v.h.front <= i && i < v.h.front + v.h.sync) ? hsyncBit : hsyncBitI;
+                vSyncInactiveBuffer[i ^ 2] = chosenHsyncBit | vsyncBit;
+                inactiveBuffer[i ^ 2] = chosenHsyncBit | vsyncBitI;
+            }
+            foreach (i; 0 .. vt.h.res)
+            {
+                vSyncActiveBuffer[i ^ 2] = hsyncBitI | vsyncBit;
+                blankActiveBuffer[i ^ 2] = hsyncBitI | vsyncBitI;
+            }
+        }
+        else
+        {
+            assert(false);
+        }
+
+        descriptors = dalloc!lldesc_t(totalLines * 2);
+        foreach (i, ref desc; descriptors)
+        {
+            desc.length = 0;
+            desc.size = 0;
+            desc.owner = 1;
+            desc.sosf = 0;
+            desc.buf = (uint8_t *)0;
+            desc.offset = 0;
+            desc.empty = 0;
+            desc.eof = 1;
+            desc.qe.stqe_next = &descriptors[(i + 1) % descriptors.length];
+        }
+
+        void setDescriptorBuffer(ref lldesc_t desc, ubyte[] buffer)
+        {
+            desc.length = buffer.length;
+            desc.size = buffer.length;
+            desc.buf = buffer.ptr;
+        }
+
+        int d = 0;
+        foreach(i; 0 .. vt.v.front)
+        {
+            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
+            descriptors[d++].setDescriptorBuffer(blankActiveBuffer);
+        }
+        foreach(i; 0 .. vt.v.sync)
+        {
+            descriptors[d++].setDescriptorBuffer(vSyncInactiveBuffer);
+            descriptors[d++].setDescriptorBuffer(vSyncActiveBuffer);
+        }
+        foreach(i; 0 .. vt.v.back)
+        {
+            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
+            descriptors[d++].setDescriptorBuffer(blankActiveBuffer);
+        }
+        foreach(i; 0 .. vt.v.res)
+        {
+            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
+            descriptors[d++].setDescriptorBuffer(frameBuffer.getLine(i / vt.vDiv));
+        }
+    }
+}
