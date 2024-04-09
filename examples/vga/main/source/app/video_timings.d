@@ -1,5 +1,8 @@
 module app.video_timings;
 
+// dfmt off
+@safe:
+
 struct VideoTimings
 {
 // Nested types
@@ -27,8 +30,8 @@ public:
 
 immutable VideoTimings videoTimings320x480 = {
     pixelClock: 12_587_500,
-    h: {front: 8,  sync: 48, back: 24, res: 320, polarity: 1},
-    v: {front: 11, sync: 2,  back: 31, res: 480, polarity: 1},
+    h: {front: 8, sync: 48, back: 24, res: 320, polarity: 1},
+    v: {front: 11, sync: 2, back: 31, res: 480, polarity: 1},
     vDiv: 2,
     aspect: 1.0,
 };

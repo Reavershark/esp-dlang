@@ -3,25 +3,35 @@ module app.vga;
 import app.color;
 import app.util;
 import app.video_timings;
-import std.algorithm.setops;
 
 import idf.esp_hw_support.esp_private.periph_ctrl : periph_module_enable;
 import idf.esp_rom.lldesc : lldesc_t;
 import idf.heap.caps : MALLOC_CAP_DMA;
+import idf.soc.i2s_struct : I2S0, I2S1, i2s_dev_t;
+import idf.soc.periph_defs : PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE, periph_module_t;
 
+// dfmt off
 @safe:
 
-struct VGA(uint frameBufferCount = 0)
-if (frameBufferCount == 0) // Only valid value right now
+struct VGA(uint frameBufferCount = 1)
+if (frameBufferCount == 1) // Only valid value right now
 {
+// Static fields
+private:
+    static immutable(periph_module_t)[] i2sPeripheralModules = [
+        PERIPH_I2S0_MODULE,
+        PERIPH_I2S1_MODULE
+    ];
+    static immutable(i2s_dev_t)*[] i2sDevices = [
+        &I2S0,
+        &I2S1
+    ];
+    static assert(i2sPeripheralModules.length == i2sDevices.length);
+
 // Instance fields
 private:
     const VideoTimings* vt;
-    const int redPin;
-    const int greenPin;
-    const int bluePin;
-    const int hsyncPin;
-    const int vsyncPin;
+    const VGAPins pins;
     const uint i2sModuleIndex;
 
     FrameBuffer[frameBufferCount] frameBuffers;
@@ -34,48 +44,56 @@ private:
 public:
     this(
         const VideoTimings* vt,
-        const int redPin,
-        const int greenPin,
-        const int bluePin,
-        const int hsyncPin,
-        const int vsyncPin,
-        const uint i2sModuleIndex = 1, // Only 1 can output in 8-bit
+        const VGAPins pins,
+        const uint i2sModuleIndex = 1, // Only module 1 can output in 8-bit mode
     )
     in (vt !is null)
+    in (i2sModuleIndex < i2sPeripheralModules.length)
     {
         this.vt = vt;
-        this.redPin = redPin;
-        this.greenPin = greenPin;
-        this.bluePin = bluePin;
-        this.hsyncPin = hsyncPin;
-        this.vsyncPin = vsyncPin;
-        this.i2sModuleIndex = i2sModuleIndex;
+        this.pins = pins;
+        this.i2sDeviceIndex = i2sDeviceIndex;
+
+        (() @trusted => periph_module_enable(i2sPeripheralModules[i2sModuleIndex]))();
 
         initFrameBuffers;
         syncStatus = SyncStatus(vt);
-        dmaLineBufferRing = DMALineBufferRing(vt, frameBuffers[0], i2sModuleIndex);
+        dmaLineBufferRing = DMALineBufferRing(vt, &frameBuffers[0], &syncStatus);
 
-	    currentLine = 0;
-	    initParallelOutputMode(pinMap, mode.pixelClock, bitCount, clockPin);
-	    startTX();
+        initParallelOutputMode(pinMap, mode.pixelClock, bitCount, clockPin);
+
+        i2s_dev_t* i2s = i2sDevices[i2sDeviceIndex];
+        reset();
+        i2s.lc_conf.val = I2S_OUT_DATA_BURST_EN | I2S_OUTDSCR_BURST_EN;
+        dmaBufferDescriptorActive = 0;
+        i2s.out_link.addr = (uint32_t) firstDescriptorAddress();
+        i2s.out_link.start = 1;
+        i2s.conf.tx_start = 1;
     }
 
 private:
     void initFrameBuffers()
     {
-        foreach(ref fb; frameBuffers)
+        foreach (ref fb; frameBuffers)
         {
-            fb = FrameBuffer.create(width, height);
+            fb = FrameBuffer.create(vt.activeWidth, vt.activeHeight);
             fb.fill(0);
         }
     }
+}
+
+struct VGAPins
+{
+// Instance fields
+public:
+    int red, green, blue, hSync, vSync;
 }
 
 struct FrameBuffer
 {
 // Instance fields
 private:
-    const uint width, height;
+    uint width, height;
     Color[] arr;
 
 // Static methods
@@ -83,9 +101,12 @@ public:
     static FrameBuffer create(const uint width, const uint height)
     in (width > 0 && height > 0)
     {
-        this.width = width;
-        this.height = height;
-        this.arr = dallocArray!Color(width * height);
+        FrameBuffer fb = {
+            width: width,
+            height: height,
+            arr: dallocArray!Color(width * height),
+        };
+        return fb;
     }
 
 // Instance methods
@@ -96,7 +117,7 @@ public:
             color = fillColor;
     }
 
-    Color[] getLine(in uint line)
+    inout(Color[]) getLine(in uint line) inout
     in (line < height)
     {
         return arr[line * width .. line * width + width];
@@ -108,10 +129,10 @@ struct SyncStatus
 // Instance fields
 public:
     bool vsyncPassed;
-    long vsyncBitI;
-    long hsyncBitI;
-    long vsyncBit;
-    long hsyncBit;
+    Color vsyncBitI;
+    Color hsyncBitI;
+    Color vsyncBit;
+    Color hsyncBit;
     Color sBits;
 
 // Instance methods
@@ -130,18 +151,12 @@ public:
 
 struct DMALineBufferRing
 {
-// Nested types
-public:
-    enum periph_module_t[] i2sModules = [
-        PERIPH_I2S0_MODULE,
-        PERIPH_I2S1_MODULE
-    ];
-
 // Instance fields
 private:
     const VideoTimings* vt;
-    const FrameBuffer* frameBuffer;
+    FrameBuffer* frameBuffer;
     const SyncStatus* syncStatus;
+
     lldesc_t[] descriptors;
     ubyte[] inactiveBuffer;
     ubyte[] vSyncInactiveBuffer;
@@ -152,18 +167,14 @@ private:
 public:
     this(
         const VideoTimings* vt,
-        const FrameBuffer* frameBuffer,
-        const SyncStatus* syncStatus,
-        in uint i2sModuleIndex
+        FrameBuffer* frameBuffer,
+        const SyncStatus* syncStatus
     )
     in (vt !is null)
     in (frameBuffer !is null)
-    in (i2sModuleIndex < i2sModules.length)
     {
-        this.vt = videoTimings;
+        this.vt = vt;
         this.frameBuffer = frameBuffer;
-
-        periph_module_enable(i2sModules[i2sModuleIndex]);
 
         initDescriptorRing;
         initLineBuffers;
@@ -184,21 +195,21 @@ private:
             desc.offset = 0;
             desc.empty = 0;
             desc.eof = 1;
-            desc.qe.stqe_next = &descriptors[(i + 1) % descriptors.length];
+            (() @trusted { desc.qe.stqe_next = &descriptors[(i + 1) % descriptors.length]; }());
         }
     }
 
     void initLineBuffers()
     {
         assert(vt.inactiveWidth % 4 == 0);
-        inactiveBuffer      = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
+        inactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
         vSyncInactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
-        blankActiveBuffer   = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
-        vSyncActiveBuffer   = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
+        blankActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
+        vSyncActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
 
         foreach (i; 0 .. vt.inactiveWidth)
         {
-            bool inHsync = (v.h.front <= i && i < v.h.front + v.h.sync);
+            bool inHsync = (vt.h.front <= i && i < vt.h.front + vt.h.sync);
             auto hSyncBit = inHsync ? syncStatus.hsyncBit : syncStatus.hsyncBitI;
             inactiveBuffer     [i ^ 2] = hSyncBit | syncStatus.vsyncBitI;
             vSyncInactiveBuffer[i ^ 2] = hSyncBit | syncStatus.vsyncBit;
@@ -212,33 +223,33 @@ private:
 
     void assignBuffersToDescriptors()
     {
-        void setDescriptorBuffer(ref lldesc_t desc, ubyte[] buffer) pure
+        void setDescriptorBuffer(ref lldesc_t desc, ubyte[] buffer) pure @safe
         {
             desc.length = buffer.length;
             desc.size = buffer.length;
-            desc.buf = buffer.ptr;
+            desc.buf = &buffer[0];
         }
 
         int d = 0;
-        foreach(i; 0 .. vt.v.front)
+        foreach (i; 0 .. vt.v.front)
         {
-            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
-            descriptors[d++].setDescriptorBuffer(blankActiveBuffer);
+            setDescriptorBuffer(descriptors[d++], inactiveBuffer);
+            setDescriptorBuffer(descriptors[d++], blankActiveBuffer);
         }
-        foreach(i; 0 .. vt.v.sync)
+        foreach (i; 0 .. vt.v.sync)
         {
-            descriptors[d++].setDescriptorBuffer(vSyncInactiveBuffer);
-            descriptors[d++].setDescriptorBuffer(vSyncActiveBuffer);
+            setDescriptorBuffer(descriptors[d++], vSyncInactiveBuffer);
+            setDescriptorBuffer(descriptors[d++], vSyncActiveBuffer);
         }
-        foreach(i; 0 .. vt.v.back)
+        foreach (i; 0 .. vt.v.back)
         {
-            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
-            descriptors[d++].setDescriptorBuffer(blankActiveBuffer);
+            setDescriptorBuffer(descriptors[d++], inactiveBuffer);
+            setDescriptorBuffer(descriptors[d++], blankActiveBuffer);
         }
-        foreach(i; 0 .. vt.v.res)
+        foreach (i; 0 .. vt.v.res)
         {
-            descriptors[d++].setDescriptorBuffer(inactiveBuffer);
-            descriptors[d++].setDescriptorBuffer(frameBuffer.getLine(i / vt.vDiv));
+            setDescriptorBuffer(descriptors[d++], inactiveBuffer);
+            setDescriptorBuffer(descriptors[d++], frameBuffer.getLine(i / vt.vDiv));
         }
         assert(d == descriptors.length);
     }

@@ -3,19 +3,18 @@ module app.util;
 import idf.stdlib : malloc;
 import idf.heap.caps : heap_caps_malloc;
 
-extern(C)
-void* malloc(size_t size);
+@safe:
 
-T* dalloc(T)()
+T* dalloc(T)() @trusted
 {
     ubyte* ptr = cast(ubyte*) malloc(T.sizeof);
     assert(ptr, "dalloc: malloc failed");
-    foreach(ref b; ptr[0 .. T.sizeof])
+    foreach (ref b; ptr[0 .. T.sizeof])
         b = 0;
     return cast(T*) ptr;
 }
 
-T[] dallocArray(T)(size_t length)
+T[] dallocArray(T)(size_t length) @trusted
 {
     ubyte* ptr = cast(ubyte*) malloc(T.sizeof * length);
     assert(ptr, "dallocArray: malloc failed");
@@ -25,17 +24,17 @@ T[] dallocArray(T)(size_t length)
     return cast(T[]) slice;
 }
 
-T* dallocCaps(T)(uint capabilities = 0)
+T* dallocCaps(T)(uint capabilities = 0) @trusted
 {
     ubyte* ptr = cast(ubyte*) heap_caps_malloc(T.sizeof, capabilities);
-    foreach(ref b; ptr[0 .. T.sizeof])
+    foreach (ref b; ptr[0 .. T.sizeof])
         b = 0;
     return cast(T*) ptr;
 }
 
-T[] dallocArrayCaps(T)(size_t length, uint capabilities = 0)
+T[] dallocArrayCaps(T)(size_t length, uint capabilities = 0) @trusted
 {
-    ubyte* ptr = cast(ubyte*) malloc(T.sizeof * length, capabilities);
+    ubyte* ptr = cast(ubyte*) heap_caps_malloc(T.sizeof * length, capabilities);
     ubyte[] slice = ptr[0 .. T.sizeof * length];
     foreach (ref b; slice)
         b = 0;

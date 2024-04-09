@@ -2,7 +2,6 @@
 
 # Config
 DFLAGS+=" --linkonce-templates"
-DFLAGS+=" --preview=dip1000"
 DFLAGS+=" --preview=in"
 
 set -e

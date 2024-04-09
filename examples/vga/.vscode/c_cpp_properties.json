@@ -7,7 +7,7 @@
             "compilerPath": "~/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20240305/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
             "includePath": [
                 "./build/config",
-                "./components/main/include",
+                "./main/include",
                 "/opt/esp-idf/components/cmock/include",
                 "/opt/esp-idf/components/cmock/CMock/src",
                 "/opt/esp-idf/components/esp_driver_parlio/include",
