@@ -42,11 +42,11 @@ public:
         syncStatus = SyncStatus(vt);
         dmaLineBufferRing = DMALineBufferRing(vt, &frameBuffers[0], &syncStatus);
 
-        int[] pinMap = [
+        int[8] pinMap = [
             pins.red, pins.green, pins.blue, -1, // bits 0-3
             -1, -1, pins.hSync, pins.vSync       // bits 4-7
         ];
-        i2sManager = I2SManager(i2sIndex, pinMap, vt.pixelClock, dmaLineBufferRing.firstDescriptor);
+        i2sManager = I2SManager(i2sIndex, pinMap[], vt.pixelClock, dmaLineBufferRing.firstDescriptor);
     }
 
 private:

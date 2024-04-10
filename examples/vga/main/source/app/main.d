@@ -4,9 +4,9 @@ import app.vga : VGA, VGAPins;
 import app.video_timings : videoTimings320x480;
 
 // dfmt off
-@safe nothrow @nogc:
+@safe:
 
-enum vt = videoTimings320x480;
+immutable vt = &videoTimings320x480;
 enum pins = VGAPins(
     red:   14,
     green: 27,

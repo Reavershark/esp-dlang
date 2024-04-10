@@ -1,3 +1,4 @@
 name "main"
 targetType "library"
 buildRequirements "allowWarnings"
+sourceFiles "extras.c"

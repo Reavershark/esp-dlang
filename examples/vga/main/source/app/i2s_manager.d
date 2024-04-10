@@ -2,6 +2,8 @@ module app.i2s_manager;
 
 import idf.esp_driver_gpio.gpio : gpio_set_direction;
 import idf.esp_hw_support.esp_private.periph_ctrl : periph_module_enable;
+import idf.esp_hw_support.port.soc.rtc : rtc_clk_apll_coeff_set, rtc_clk_apll_enable;
+import idf.esp_rom.gpio : gpio_matrix_out;
 import idf.esp_rom.lldesc : lldesc_t;
 import idf.hal.gpio_types : GPIO_MODE_DEF_OUTPUT, gpio_mode_t;
 import idf.soc.gpio_num : gpio_num_t;
@@ -14,7 +16,7 @@ import idf.soc.gpio_sig_map;
 import idf.soc.i2s_reg;
 
 // dfmt off
-@safe nothrow @nogc:
+@safe:
 
 private
 {
@@ -42,13 +44,13 @@ public:
         i2sDev = i2sDevices[i2sIndex];
 
         enablePeripheralModule;
-        setupParallelOutput(pinMap);
+        setupParallelOutput(pinMap, sampleRate);
         startTransmitting;
     }
 
 private:
-    auto i2sPeripheralModule() pure => i2sPeripheralModules[i2sIndex];
-    auto i2sOutSignalIndex() pure => i2sOutSignalIndices[i2sIndex];
+    auto i2sPeripheralModule() const => i2sPeripheralModules[i2sIndex];
+    auto i2sOutSignalIndex() const => i2sOutSignalIndices[i2sIndex];
 
     void enablePeripheralModule() const @trusted
     {
@@ -58,12 +60,12 @@ private:
     void resetModule() pure
     {
         // Set and unset in_rst, out_rst, ahmb_fifo_rst, ahbm_rst
-        const ulong lc_conf_reset_flags = I2S_IN_RST_M | I2S_OUT_RST_M | I2S_AHBM_FIFO_RST_M | I2S_AHBM_RST_M ;
+        const ulong lc_conf_reset_flags = 0xF;
         i2sDev.lc_conf.val |= lc_conf_reset_flags;
         i2sDev.lc_conf.val &= ~lc_conf_reset_flags;
 
         // Set and unset tx_reset, rx_reset, tx_fifo_reset, rx_fifo_reset
-        const uint conf_reset_flags = I2S_TX_RESET_M | I2S_RX_RESET_M | I2S_TX_FIFO_RESET_M | I2S_RX_FIFO_RESET_M;
+        const uint conf_reset_flags = 0xF;
         i2sDev.conf.val |= conf_reset_flags;
         i2sDev.conf.val &= ~conf_reset_flags;
 
@@ -71,31 +73,31 @@ private:
         while (i2sDev.state.rx_fifo_reset_back) {}
     }
 
-    void setupParallelOutput(const int[] pinMap, const long sampleRate)
+    void setupParallelOutput(in int[] pinMap, const long sampleRate)
     in (pinMap.length == 8)
     in (sampleRate > 0)
     {
         const size_t bitCount = pinMap.length;
 
         foreach (i, pin; pinMap)
-        {
             if (pin > -1)
             {
-                setPinFunction(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
-                gpio_set_direction(cast(gpio_num_t) pin, cast(gpio_mode_t) GPIO_MODE_DEF_OUTPUT);
-                if (i2sIndex == 1)
-                {
-                    if (bitCount == 16)
-                        gpio_matrix_out(pin, i2sOutSignalIndex + i + 8, false, false);
+                () @trusted {
+                    setPinFunction(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+                    gpio_set_direction(cast(gpio_num_t) pin, cast(gpio_mode_t) GPIO_MODE_DEF_OUTPUT);
+                    if (i2sIndex == 1)
+                    {
+                        if (bitCount == 16)
+                            gpio_matrix_out(pin, i2sOutSignalIndex + i + 8, false, false);
+                        else
+                            gpio_matrix_out(pin, i2sOutSignalIndex + i, false, false);
+                    }
                     else
-                        gpio_matrix_out(pin, i2sOutSignalIndex + i, false, false);
-                }
-                else
-                {
-                    gpio_matrix_out(pin, i2sOutSignalIndex + i + 24 - bitCount, false, false);
-                }
+                    {
+                        gpio_matrix_out(pin, i2sOutSignalIndex + i + 24 - bitCount, false, false);
+                    }
+                }();
             }
-        }
 
         // Why not regular reset()?
         i2sDev.conf.tx_reset = 1;
@@ -128,14 +130,16 @@ private:
             do
             {	
                 odir++;
-                sdm = (cast(long) (((cast(double) freq) / (20_000_000.0 / (odir + 2))) * 0x10000)) - 0x40000;
-                sdmn = (cast(long) (((cast(double) freq) / (20_000_000.0 / (odir + 2 + 1))) * 0x10000)) - 0x40000;
+                sdm = cast(int) ((cast(long) (((cast(double) freq) / (20_000_000.0 / (odir + 2))) * 0x10000)) - 0x40000);
+                sdmn = cast(int) ((cast(long) (((cast(double) freq) / (20_000_000.0 / (odir + 2 + 1))) * 0x10000)) - 0x40000);
             }
             while (sdm < 0x8c0ecL && odir < 31 && sdmn < 0xA1fff);
             if (sdm > 0xA1fff)
                 sdm = 0xA1fff;
-            rtc_clk_apll_enable(true);
-            rtc_clk_apll_coeff_set(odir, sdm & 255, (sdm >> 8) & 255, sdm >> 16);
+            () @trusted {
+                rtc_clk_apll_enable(true);
+                rtc_clk_apll_coeff_set(odir, sdm & 255, (sdm >> 8) & 255, sdm >> 16);
+            } ();
         }
 
         i2sDev.clkm_conf.val = 0;
@@ -172,7 +176,7 @@ private:
     void startTransmitting()
     {
         resetModule;
-        i2sDev.lc_conf.val = I2S_OUT_DATA_BURST_EN | I2S_OUTDSCR_BURST_EN;
+        i2sDev.lc_conf.val = (1 << 11) | (1 << 9); // I2S_OUT_DATA_BURST_EN | I2S_OUTDSCR_BURST_EN
         i2sDev.out_link.addr = cast(uint) firstDMADescriptor;
         i2sDev.out_link.start = 1;
         i2sDev.conf.tx_start = 1;
