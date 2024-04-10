@@ -3,6 +3,7 @@
 # Config
 DFLAGS+=" --linkonce-templates"
 DFLAGS+=" --preview=in"
+DFLAGS+=" --preview=bitfields"
 
 set -e
 

@@ -1,14 +1,12 @@
 module app.vga;
 
-import app.color;
-import app.util;
-import app.video_timings;
+import app.color : Color;
+import app.util : dallocArray, dallocArrayCaps;
+import app.i2s_manager : I2SManager;
+import app.video_timings : VideoTimings;
 
-import idf.esp_hw_support.esp_private.periph_ctrl : periph_module_enable;
 import idf.esp_rom.lldesc : lldesc_t;
 import idf.heap.caps : MALLOC_CAP_DMA;
-import idf.soc.i2s_struct : I2S0, I2S1, i2s_dev_t;
-import idf.soc.periph_defs : PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE, periph_module_t;
 
 // dfmt off
 @safe:
@@ -16,27 +14,15 @@ import idf.soc.periph_defs : PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE, periph_modu
 struct VGA(uint frameBufferCount = 1)
 if (frameBufferCount == 1) // Only valid value right now
 {
-// Static fields
-private:
-    static immutable(periph_module_t)[] i2sPeripheralModules = [
-        PERIPH_I2S0_MODULE,
-        PERIPH_I2S1_MODULE
-    ];
-    static immutable(i2s_dev_t)*[] i2sDevices = [
-        &I2S0,
-        &I2S1
-    ];
-    static assert(i2sPeripheralModules.length == i2sDevices.length);
-
 // Instance fields
 private:
     const VideoTimings* vt;
     const VGAPins pins;
-    const uint i2sModuleIndex;
 
     FrameBuffer[frameBufferCount] frameBuffers;
     SyncStatus syncStatus;
     DMALineBufferRing dmaLineBufferRing;
+    I2SManager i2sManager;
 
     uint currentLine = 0;
 
@@ -45,30 +31,22 @@ public:
     this(
         const VideoTimings* vt,
         const VGAPins pins,
-        const uint i2sModuleIndex = 1, // Only module 1 can output in 8-bit mode
+        const uint i2sIndex = 1, // Only peripheral 1 can output in 8-bit mode
     )
     in (vt !is null)
-    in (i2sModuleIndex < i2sPeripheralModules.length)
     {
         this.vt = vt;
         this.pins = pins;
-        this.i2sDeviceIndex = i2sDeviceIndex;
-
-        (() @trusted => periph_module_enable(i2sPeripheralModules[i2sModuleIndex]))();
 
         initFrameBuffers;
         syncStatus = SyncStatus(vt);
         dmaLineBufferRing = DMALineBufferRing(vt, &frameBuffers[0], &syncStatus);
 
-        initParallelOutputMode(pinMap, mode.pixelClock, bitCount, clockPin);
-
-        i2s_dev_t* i2s = i2sDevices[i2sDeviceIndex];
-        reset();
-        i2s.lc_conf.val = I2S_OUT_DATA_BURST_EN | I2S_OUTDSCR_BURST_EN;
-        dmaBufferDescriptorActive = 0;
-        i2s.out_link.addr = (uint32_t) firstDescriptorAddress();
-        i2s.out_link.start = 1;
-        i2s.conf.tx_start = 1;
+        int[] pinMap = [
+            pins.red, pins.green, pins.blue, -1, // bits 0-3
+            -1, -1, pins.hSync, pins.vSync       // bits 4-7
+        ];
+        i2sManager = I2SManager(i2sIndex, pinMap, vt.pixelClock, dmaLineBufferRing.firstDescriptor);
     }
 
 private:
@@ -77,7 +55,7 @@ private:
         foreach (ref fb; frameBuffers)
         {
             fb = FrameBuffer.create(vt.activeWidth, vt.activeHeight);
-            fb.fill(0);
+            fb.fill(1);
         }
     }
 }
@@ -86,7 +64,11 @@ struct VGAPins
 {
 // Instance fields
 public:
-    int red, green, blue, hSync, vSync;
+    int red   = -1;
+    int green = -1;
+    int blue  = -1;
+    int hSync = -1;
+    int vSync = -1;
 }
 
 struct FrameBuffer
@@ -162,6 +144,7 @@ private:
     ubyte[] vSyncInactiveBuffer;
     ubyte[] blankActiveBuffer;
     ubyte[] vSyncActiveBuffer;
+    size_t activeDescriptor;
 
 // Instance methods
 public:
@@ -252,5 +235,12 @@ private:
             setDescriptorBuffer(descriptors[d++], frameBuffer.getLine(i / vt.vDiv));
         }
         assert(d == descriptors.length);
+    }
+
+public:
+    inout(lldesc_t)* firstDescriptor() pure inout
+    in (descriptors.length)
+    {
+        return &descriptors[0];
     }
 }

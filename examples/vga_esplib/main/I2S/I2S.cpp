@@ -179,6 +179,7 @@ bool I2S::initParallelInputMode(const int *pinMap, long sampleRate, const int bi
 	return true;
 }
 
+// initParallelOutputMode(pinMap, mode.pixelClock, bitCount, clockPin);
 bool I2S::initParallelOutputMode(const int *pinMap, long sampleRate, const int bitCount, int wordSelect, int baseClock)
 {
 	volatile i2s_dev_t &i2s = *i2sDevices[i2sIndex];
