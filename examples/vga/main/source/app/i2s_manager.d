@@ -18,6 +18,9 @@ import idf.soc.i2s_reg;
 // dfmt off
 @safe:
 
+extern(C) bool init_parallel_output_mode();
+extern(C) void start_tx(const lldesc_t *firstDescriptorAddress);
+
 private
 {
     i2s_dev_t*[] i2sDevices = [&I2S0, &I2S1];
@@ -44,8 +47,10 @@ public:
         i2sDev = i2sDevices[i2sIndex];
 
         enablePeripheralModule;
-        setupParallelOutput(pinMap, sampleRate);
-        startTransmitting;
+        // setupParallelOutput(pinMap, sampleRate);
+        // startTransmitting;
+        init_parallel_output_mode();
+        start_tx(firstDMADescriptor);
     }
 
 private:
@@ -99,19 +104,7 @@ private:
                 }();
             }
 
-        // Why not regular reset()?
-        i2sDev.conf.tx_reset = 1;
-        i2sDev.conf.tx_reset = 0;
-        i2sDev.conf.rx_reset = 1;
-        i2sDev.conf.rx_reset = 0;
-        i2sDev.conf.rx_fifo_reset = 1;
-        i2sDev.conf.rx_fifo_reset = 0;
-        i2sDev.conf.tx_fifo_reset = 1;
-        i2sDev.conf.tx_fifo_reset = 0;
-        i2sDev.lc_conf.in_rst = 1;
-        i2sDev.lc_conf.in_rst = 0;
-        i2sDev.lc_conf.out_rst = 1;
-        i2sDev.lc_conf.out_rst = 0;
+        resetModule;
 
         i2sDev.conf2.val = 0;
         i2sDev.conf2.lcd_en = 1;

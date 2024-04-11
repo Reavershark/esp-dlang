@@ -1,6 +1,6 @@
 idf_component_register(
     SRCS "/dev/null"
-    REQUIRES driver
+    PRIV_REQUIRES driver
 )
 
 # Code below is the same for every d component

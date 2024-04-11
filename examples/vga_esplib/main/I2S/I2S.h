@@ -1,5 +1,7 @@
 #pragma once
 
+#define __builtin_ffs(arg) 0
+
 #include "esp_heap_caps.h"
 #include "soc/soc.h"
 #include "soc/gpio_sig_map.h"
@@ -21,9 +23,7 @@ class I2S
 public:
     int i2sIndex;
     int dmaBufferDescriptorCount;
-    int dmaBufferDescriptorActive;
     DMABufferDescriptor *dmaBufferDescriptors;
-    volatile bool stopSignal;
 
 // Instance methods
 public:
@@ -35,20 +35,9 @@ public:
 
     void i2sStop();
     void startTX();
-    void startRX();
 
-    void resetDMA();
-    void resetFIFO();
-    bool initParallelOutputMode(const int *pinMap, long APLLFreq = 1000000, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
-    bool initSerialOutputMode(int dataPin, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
-    bool initParallelInputMode(const int *pinMap, long sampleRate = 1000000, const int bitCount = 8, int wordSelect = -1, int baseClock = -1);
+    bool initParallelOutputMode(const int *pinMap, long APLLFreq = 1000000, const int bitCount = 8);
     DMABufferDescriptor *firstDescriptorAddress() const;
 
-    void allocateDMABuffers(int count, int bytes);
     void deleteDMABuffers();
-    void getClockSetting(long *sampleRate, int *n, int *a, int *b, int *div);
-
-  protected:
-    void setAPLLClock(long sampleRate, int bitCount);
-    void setClock(long sampleRate, int bitCount, bool useAPLL = true);
 };

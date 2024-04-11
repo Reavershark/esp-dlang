@@ -3,6 +3,9 @@ module app.main;
 import app.vga : VGA, VGAPins;
 import app.video_timings : videoTimings320x480;
 
+import idf.freertos : vTaskSuspend;
+import idf.stdio : printf;
+
 // dfmt off
 @safe:
 
@@ -20,7 +23,9 @@ void app_main()
 {
     auto vga = VGA!()(vt, pins);
 
+    printf("Entering idle loop\n");
     while (true)
     {
+        (() @trusted => vTaskSuspend(null))();
     }
 }

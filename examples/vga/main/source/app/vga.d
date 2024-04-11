@@ -7,6 +7,7 @@ import app.video_timings : VideoTimings;
 
 import idf.esp_rom.lldesc : lldesc_t;
 import idf.heap.caps : MALLOC_CAP_DMA;
+import idf.stdio : printf;
 
 // dfmt off
 @safe:
@@ -20,11 +21,8 @@ private:
     const VGAPins pins;
 
     FrameBuffer[frameBufferCount] frameBuffers;
-    SyncStatus syncStatus;
     DMALineBufferRing dmaLineBufferRing;
     I2SManager i2sManager;
-
-    uint currentLine = 0;
 
 // Instance methods
 public:
@@ -39,8 +37,7 @@ public:
         this.pins = pins;
 
         initFrameBuffers;
-        syncStatus = SyncStatus(vt);
-        dmaLineBufferRing = DMALineBufferRing(vt, &frameBuffers[0], &syncStatus);
+        dmaLineBufferRing = DMALineBufferRing(vt, &frameBuffers[0]);
 
         int[8] pinMap = [
             pins.red, pins.green, pins.blue, -1, // bits 0-3
@@ -55,7 +52,7 @@ private:
         foreach (ref fb; frameBuffers)
         {
             fb = FrameBuffer.create(vt.activeWidth, vt.activeHeight);
-            fb.fill(1);
+            fb.fill(0xC1);
         }
     }
 }
@@ -71,73 +68,12 @@ public:
     int vSync = -1;
 }
 
-struct FrameBuffer
-{
-// Instance fields
-private:
-    uint width, height;
-    Color[] arr;
-
-// Static methods
-public:
-    static FrameBuffer create(const uint width, const uint height)
-    in (width > 0 && height > 0)
-    {
-        FrameBuffer fb = {
-            width: width,
-            height: height,
-            arr: dallocArray!Color(width * height),
-        };
-        return fb;
-    }
-
-// Instance methods
-public:
-    void fill(in Color fillColor) pure
-    {
-        foreach (ref color; arr)
-            color = fillColor;
-    }
-
-    inout(Color[]) getLine(in uint line) inout
-    in (line < height)
-    {
-        return arr[line * width .. line * width + width];
-    }
-}
-
-struct SyncStatus
-{
-// Instance fields
-public:
-    bool vsyncPassed;
-    Color vsyncBitI;
-    Color hsyncBitI;
-    Color vsyncBit;
-    Color hsyncBit;
-    Color sBits;
-
-// Instance methods
-public:
-    this(in VideoTimings* vt)
-    in (vt !is null)
-    {
-        vsyncPassed = false;
-        vsyncBitI = vt.h.polarity ? 0x40 : 0;
-        hsyncBitI = vt.v.polarity ? 0x80 : 0;
-        vsyncBit = hsyncBitI ^ 0x40;
-        hsyncBit = vsyncBitI ^ 0x80;
-        sBits = hsyncBitI | vsyncBitI;
-    }
-}
-
 struct DMALineBufferRing
 {
 // Instance fields
 private:
     const VideoTimings* vt;
     FrameBuffer* frameBuffer;
-    const SyncStatus* syncStatus;
 
     lldesc_t[] descriptors;
     ubyte[] inactiveBuffer;
@@ -151,7 +87,6 @@ public:
     this(
         const VideoTimings* vt,
         FrameBuffer* frameBuffer,
-        const SyncStatus* syncStatus
     )
     in (vt !is null)
     in (frameBuffer !is null)
@@ -159,15 +94,43 @@ public:
         this.vt = vt;
         this.frameBuffer = frameBuffer;
 
-        initDescriptorRing;
         initLineBuffers;
+        initDescriptorRing;
         assignBuffersToDescriptors;
     }
 
 private:
+    void initLineBuffers()
+    {
+        assert(vt.inactiveWidth % 4 == 0);
+        inactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
+        vSyncInactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
+        blankActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
+        vSyncActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
+
+        foreach (uint i; 0 .. vt.inactiveWidth)
+        {
+            if (vt.h.front <= i && i < vt.h.front + vt.h.sync)
+            {
+                vSyncInactiveBuffer[i ^ 2] = 0;
+                inactiveBuffer     [i ^ 2] = 0x80;
+            }
+            else
+            {
+                vSyncInactiveBuffer[i ^ 2] = 0x40;
+                inactiveBuffer     [i ^ 2] = 0xC0;
+            }
+        }
+        foreach (i; 0 .. vt.activeWidth)
+        {
+            blankActiveBuffer[i ^ 2] = 0xC0;
+            vSyncActiveBuffer[i ^ 2] = 0x40;
+        }
+    }
+
     void initDescriptorRing()
     {
-        descriptors = dallocArray!lldesc_t(vt.v.total * 2);
+        descriptors = dallocArrayCaps!lldesc_t(vt.v.total * 2, MALLOC_CAP_DMA);
         foreach (i, ref desc; descriptors)
         {
             desc.length = 0;
@@ -179,28 +142,6 @@ private:
             desc.empty = 0;
             desc.eof = 1;
             (() @trusted { desc.qe.stqe_next = &descriptors[(i + 1) % descriptors.length]; }());
-        }
-    }
-
-    void initLineBuffers()
-    {
-        assert(vt.inactiveWidth % 4 == 0);
-        inactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
-        vSyncInactiveBuffer = dallocArrayCaps!ubyte(vt.inactiveWidth, MALLOC_CAP_DMA);
-        blankActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
-        vSyncActiveBuffer = dallocArrayCaps!ubyte(vt.activeWidth, MALLOC_CAP_DMA);
-
-        foreach (i; 0 .. vt.inactiveWidth)
-        {
-            bool inHsync = (vt.h.front <= i && i < vt.h.front + vt.h.sync);
-            auto hSyncBit = inHsync ? syncStatus.hsyncBit : syncStatus.hsyncBitI;
-            inactiveBuffer     [i ^ 2] = hSyncBit | syncStatus.vsyncBitI;
-            vSyncInactiveBuffer[i ^ 2] = hSyncBit | syncStatus.vsyncBit;
-        }
-        foreach (i; 0 .. vt.activeWidth)
-        {
-            blankActiveBuffer[i ^ 2] = syncStatus.hsyncBitI | syncStatus.vsyncBitI;
-            vSyncActiveBuffer[i ^ 2] = syncStatus.hsyncBitI | syncStatus.vsyncBit;
         }
     }
 
@@ -242,5 +183,44 @@ public:
     in (descriptors.length)
     {
         return &descriptors[0];
+    }
+}
+
+struct FrameBuffer
+{
+// Instance fields
+private:
+    uint width, height;
+    Color[][] lines;
+
+// Static methods
+public:
+    static FrameBuffer create(const uint width, const uint height)
+    in (width > 0 && height > 0)
+    {
+        FrameBuffer fb = {
+            width: width,
+            height: height,
+            lines: dallocArray!(Color[])(height),
+        };
+        foreach (ref Color[] line; fb.lines)
+            line = dallocArrayCaps!(Color)(width, MALLOC_CAP_DMA);
+
+        return fb;
+    }
+
+// Instance methods
+public:
+    void fill(in Color fillColor)
+    {
+        foreach (ref line; lines)
+            foreach (i; 0 .. line.length)
+                line[i] = fillColor;
+    }
+
+    inout(Color[]) getLine(in uint line) inout
+    in (line < height)
+    {
+        return lines[line];
     }
 }
