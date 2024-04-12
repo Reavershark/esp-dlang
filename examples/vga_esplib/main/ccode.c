@@ -53,13 +53,13 @@ int pinMap[8] = {
     26
 };
 
-static void *allocate_dma_buffer(int bytes, bool clear, unsigned long clearValue)
+static void *allocate_dma_buffer(int bytes, bool clear, unsigned char clearValue)
 {
     void *b = heap_caps_malloc(bytes, MALLOC_CAP_DMA);
     assert(b);
     if (clear)
-        for (int i = 0; i < bytes / 4; i++)
-            ((unsigned long *)b)[i] = clearValue;
+        for (int i = 0; i < bytes; i++)
+            ((unsigned char *)b)[i] = clearValue;
     return b;
 }
 
@@ -71,7 +71,7 @@ void app_main(void)
     Color **frameBuffer = (Color **)malloc(yres * sizeof(void *));
     assert(frameBuffer);
     for (int i = 0; i < yres; i++)
-        frameBuffer[i] = allocate_dma_buffer(mode.hRes, true, 0xC1C1C1C1);
+        frameBuffer[i] = allocate_dma_buffer(mode.hRes, true, 0xC1);
 
 
     int totalLines = mode.vFront + mode.vSync + mode.vBack + mode.vRes;
@@ -198,7 +198,7 @@ void app_main(void)
 			}
 		}
 
-		//enable I2S peripheral
+    //enable I2S peripheral
 	periph_module_enable(deviceModule[i2sIndex]);
 
 	const unsigned long lc_conf_reset_flags = 0xF;
