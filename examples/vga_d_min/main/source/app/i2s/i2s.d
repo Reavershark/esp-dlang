@@ -20,8 +20,8 @@ import core.volatile;
 
 i2s_dev_t*[] i2sDevices = [&I2S0, &I2S1];
 
-extern(C) alias FinishClockSetupCFuncType = void function(i2s_dev_t*);
-extern(C) alias StartTransmittingCFuncType = void function(i2s_dev_t*, lldesc_t*);
+extern (C) alias FinishClockSetupCFuncType = void function(i2s_dev_t*);
+extern (C) alias StartTransmittingCFuncType = void function(i2s_dev_t*, lldesc_t*);
 
 FinishClockSetupCFuncType finishClockSetupCFunc;
 StartTransmittingCFuncType startTransmittingCFunc;
@@ -36,7 +36,7 @@ private:
 public:
     this(
         uint i2sIndex,
-        long freq, 
+        long freq,
         uint bitCount,
         int[] pinMap,
         lldesc_t* firstDescriptor
@@ -56,9 +56,22 @@ public:
         setupClock(freq * 2 * (bitCount / 8));
 
         finishClockSetupCFunc(i2sDev);
+        
+        i2sDev.fifo_conf.val = 0;
+        i2sDev.fifo_conf.tx_fifo_mod_force_en = 1;
+        i2sDev.fifo_conf.tx_fifo_mod = 1; //byte packing 0A0B_0B0C = 0, 0A0B_0C0D = 1, 0A00_0B00 = 3,
+        i2sDev.fifo_conf.tx_data_num = 32; //fifo length
+        i2sDev.fifo_conf.dscr_en = 1; //fifo will use dma
 
-	    i2sDev.conf.tx_right_first = 1; // high or low (stereo word order)
-	    i2sDev.timing.val = 0;
+        i2sDev.conf1.val = 0;
+        i2sDev.conf1.tx_stop_en = 0;
+        i2sDev.conf1.tx_pcm_bypass = 1;
+
+        i2sDev.conf_chan.val = 0;
+        i2sDev.conf_chan.tx_chan_mod = 1;
+
+        i2sDev.conf.tx_right_first = 1; // high or low (stereo word order)
+        i2sDev.timing.val = 0;
 
         reset;
 
