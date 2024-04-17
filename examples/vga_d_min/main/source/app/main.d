@@ -11,8 +11,9 @@ import idfd.signalio.signal : Signal;
 import idfd.util;
 
 import idf.esp_rom.lldesc : lldesc_t;
-import idf.freertos : vTaskSuspend;
+import idf.freertos : vTaskDelay, vTaskSuspend;
 import idf.heap.caps : MALLOC_CAP_DMA;
+import idf.stdio : printf;
 
 extern(C) void d_main(
     FinishClockSetupCFuncType finishClockSetupCFunc,
@@ -70,6 +71,16 @@ extern(C) void d_main(
     route(from: signals[2], to: GPIOPin(16)); // Blue
     route(from: signals[6], to: GPIOPin(25)); // HSync
     route(from: signals[7], to: GPIOPin(26)); // VSync
+
+    immutable string zeusImageStr = import("zeus.raw");
+    immutable ubyte[] zeusImage = cast(immutable ubyte[]) zeusImageStr;
+    assert(zeusImage.length == vt.v.res * vt.h.res);
+    foreach (y; 0 .. vt.v.res)
+        foreach (x; 0 .. vt.h.res)
+        {
+            ubyte imageByte = zeusImageStr[vt.h.res * y + x];
+            frameBuffer[y, x] = imageByte > 0x80 ? FrameBuffer.YELLOW : FrameBuffer.BLACK;
+        }
 
     signalGenerator.startTransmitting(&descriptors[0]);
 

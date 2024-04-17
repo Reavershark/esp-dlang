@@ -10,6 +10,8 @@ import idf.soc.gpio_sig_map : I2S0O_DATA_OUT0_IDX, I2S1O_DATA_OUT0_IDX;
 import idf.soc.i2s_struct : I2S0, I2S1, i2s_dev_t;
 import idf.soc.periph_defs : PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE, periph_module_t;
 
+import ldc.attributes : optStrategy;
+
 i2s_dev_t*[] i2sDevices = [&I2S0, &I2S1];
 
 extern (C) alias FinishClockSetupCFuncType = void function(i2s_dev_t*);
@@ -20,6 +22,7 @@ StartTransmittingCFuncType startTransmittingCFunc;
 
 struct I2SSignalGenerator
 {
+@optStrategy("none"):
     private uint m_i2sIndex;
     private i2s_dev_t* m_i2sDev;
     private uint m_bitCount;

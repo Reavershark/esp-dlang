@@ -4,7 +4,8 @@
 DFLAGS+=" --linkonce-templates"
 DFLAGS+=" --preview=in"
 DFLAGS+=" --preview=bitfields"
-DFLAGS+=" --gc"
+#DFLAGS+=" --gc"
+DFLAGS+=" --boundscheck=off --O3"
 
 set -e
 
