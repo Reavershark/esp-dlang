@@ -9,20 +9,6 @@ import idf.heap.caps : MALLOC_CAP_DMA;
 
 struct FrameBuffer
 {
-    enum Color BLACK = 0;
-    enum Color RED = 1 << 0;
-    enum Color GREEN = 1 << 1;
-    enum Color BLUE = 1 << 2;
-    enum Color YELLOW = RED | GREEN;
-    enum Color MAGENTA = RED | BLUE;
-    enum Color CYAN = GREEN | BLUE;
-    enum Color WHITE = RED | GREEN | BLUE;
-
-    enum Color HSYNC_OFF = 0;
-    enum Color HSYNC_ON = 1 << 6;
-    enum Color VSYNC_OFF = 0;
-    enum Color VSYNC_ON = 1 << 7;
-
     private const VideoTimings* m_vt;
     private Color[][] m_lineBuffers;
 
@@ -44,43 +30,23 @@ struct FrameBuffer
 
             if (y < m_vt.v.resEnd)
             {
-                line[m_vt.h.resStart   .. m_vt.h.resEnd  ] = BLACK | HSYNC_OFF | VSYNC_OFF;
-                line[m_vt.h.frontStart .. m_vt.h.frontEnd] = BLACK | HSYNC_OFF | VSYNC_OFF;
-                line[m_vt.h.syncStart  .. m_vt.h.syncEnd ] = BLACK | HSYNC_ON  | VSYNC_OFF;
-                line[m_vt.h.backStart  .. m_vt.h.backEnd ] = BLACK | HSYNC_OFF | VSYNC_OFF;
+                line[m_vt.h.resStart   .. m_vt.h.resEnd  ] = Color.BLACK;
+                line[m_vt.h.frontStart .. m_vt.h.frontEnd] = Color.BLANK;
+                line[m_vt.h.syncStart  .. m_vt.h.syncEnd ] = Color.BLANK | Color.HSYNC;
+                line[m_vt.h.backStart  .. m_vt.h.backEnd ] = Color.BLANK;
             }
             else
             {
                 const bool inVSync = m_vt.v.syncStart <= y && y < m_vt.v.syncEnd;
-                line[m_vt.h.resStart   .. m_vt.h.resEnd  ] = BLACK | HSYNC_OFF | (inVSync ? VSYNC_ON : VSYNC_OFF);
-                line[m_vt.h.frontStart .. m_vt.h.frontEnd] = BLACK | HSYNC_OFF | (inVSync ? VSYNC_ON : VSYNC_OFF);
-                line[m_vt.h.syncStart  .. m_vt.h.syncEnd ] = BLACK | HSYNC_ON  | (inVSync ? VSYNC_ON : VSYNC_OFF);
-                line[m_vt.h.backStart  .. m_vt.h.backEnd ] = BLACK | HSYNC_OFF | (inVSync ? VSYNC_ON : VSYNC_OFF);
+                const Color vSync = inVSync ? Color.VSYNC : Color.BLANK;
+                line[m_vt.h.resStart   .. m_vt.h.resEnd  ] = Color.BLANK | vSync;
+                line[m_vt.h.frontStart .. m_vt.h.frontEnd] = Color.BLANK | vSync;
+                line[m_vt.h.syncStart  .. m_vt.h.syncEnd ] = Color.BLANK | vSync | Color.HSYNC;
+                line[m_vt.h.backStart  .. m_vt.h.backEnd ] = Color.BLANK | vSync;
             }
         }
     }
 
-    void fill(Color color) pure
-    {
-        foreach (y; 0 .. m_vt.v.res)
-            getLine(y)[] = color | VSYNC_OFF | HSYNC_OFF;
-    }
-
-    void fillIteratingColorsDiagonal(string indexFunc = "x+y")()
-    {
-        immutable Color[] colors = [
-            BLACK, RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN, WHITE
-        ];
-
-        foreach (y; 0 .. m_vt.v.res)
-            foreach (x; 0 .. m_vt.h.res)
-            {
-                auto index = mixin(indexFunc);
-                this[y][x] = colors[index % colors.length];
-            }
-    }
-
-    void clear() pure => fill(BLACK);
 
     ~this()
     {
@@ -114,15 +80,41 @@ struct FrameBuffer
         return getLine(y)[x ^ 2];
     }
 
-    ref Color opIndexAssign(in Color color, in uint y, in uint x)
+    void fill(Color color) pure
     {
-        return opIndex(y, x) = color | HSYNC_OFF | VSYNC_OFF;
+        foreach (y; 0 .. m_vt.v.res)
+            getLine(y)[] = color;
     }
 
-    // ref Color opIndex(in uint y, in uint x)
-    // in (line < m_height)
-    // in (column < m_width)
-    // {
-    //     return m_fb[m_width * line + column];
-    // }
+    void clear() pure => fill(Color.BLACK);
+
+    void fillIteratingColorsDiagonal(string indexFunc = "x+y")()
+    {
+        immutable Color[] colors = [
+            Color.BLACK, Color.RED, Color.GREEN, Color.BLUE,
+            Color.YELLOW, Color.MAGENTA, Color.CYAN, Color.WHITE,
+        ];
+
+        foreach (y; 0 .. m_vt.v.res)
+            foreach (x; 0 .. m_vt.h.res)
+            {
+                auto index = mixin(indexFunc);
+                this[y][x] = colors[index % colors.length];
+            }
+    }
+
+    void drawGrayscaleImage(
+        in ubyte[] image,
+        in Color whiteColor = Color.WHITE,
+        in Color blackColor = Color.BLACK,
+    )
+    in(image.length == m_vt.v.res * m_vt.h.res)
+    {
+        foreach (y; 0 .. m_vt.v.res)
+            foreach (x; 0 .. m_vt.h.res)
+            {
+                ubyte imageByte = image[m_vt.h.res * y + x];
+                this[y, x] = imageByte > 0x80 ? whiteColor : blackColor;
+            }
+    }
 }

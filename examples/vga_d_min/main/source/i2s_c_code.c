@@ -2,8 +2,6 @@
 #include "soc/i2s_reg.h"
 #include "soc/i2s_struct.h"
 
-typedef unsigned char Color;
-
 void finishClockSetupCFunc(volatile i2s_dev_t *i2s)
 {
 	int clockN = 2, clockA = 1, clockB = 0, clockDiv = 1;

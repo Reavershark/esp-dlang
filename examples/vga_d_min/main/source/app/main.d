@@ -55,7 +55,7 @@ extern(C) void d_main(
     }
 
     foreach (i, ref descriptor; descriptors)
-        setDescriptorBuffer(descriptor, frameBuffer.getLineWithSync(i));
+        setDescriptorBuffer(descriptor, cast(ubyte[]) frameBuffer.getLineWithSync(i));
 
     I2SSignalGenerator signalGenerator = I2SSignalGenerator(
         i2sIndex: 1,
@@ -72,15 +72,8 @@ extern(C) void d_main(
     route(from: signals[6], to: GPIOPin(25)); // HSync
     route(from: signals[7], to: GPIOPin(26)); // VSync
 
-    immutable string zeusImageStr = import("zeus.raw");
-    immutable ubyte[] zeusImage = cast(immutable ubyte[]) zeusImageStr;
-    assert(zeusImage.length == vt.v.res * vt.h.res);
-    foreach (y; 0 .. vt.v.res)
-        foreach (x; 0 .. vt.h.res)
-        {
-            ubyte imageByte = zeusImageStr[vt.h.res * y + x];
-            frameBuffer[y, x] = imageByte > 0x80 ? FrameBuffer.YELLOW : FrameBuffer.BLACK;
-        }
+    immutable ubyte[] zeusImage = cast(immutable ubyte[]) import("zeus.raw");
+    frameBuffer.drawGrayscaleImage(zeusImage, Color.YELLOW, Color.BLACK);
 
     signalGenerator.startTransmitting(&descriptors[0]);
 
