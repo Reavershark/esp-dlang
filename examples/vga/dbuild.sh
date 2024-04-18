@@ -10,8 +10,6 @@ DFLAGS+=" --preview=fixImmutableConv"
 DFLAGS+=" --gc"
 # DFLAGS+=" --O3 --boundscheck=off"
 
-[[ -z "${CI}" ]] || DFLAGS+=" --d-version=CI"
-
 # Append default flags based on target
 DFLAGS+=" $(cd "$(dirname "${BASH_SOURCE[0]}")" && dflags.py)"
 export DFLAGS

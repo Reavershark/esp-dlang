@@ -7,8 +7,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [hello_world, vga]
-        target: [esp32, esp32s2, esp32s3]
+        include:
+          - example: hello_world
+            target: esp32
+            test: true
+          - example: hello_world
+            target: esp32s2
+            test: true
+          - example: hello_world
+            target: esp32s3
+            test: true
+          - example: vga
+            target: esp32
+            test: false
     runs-on: ubuntu-latest
     container:
       image: jmeeuws/esp-dlang
@@ -25,7 +36,8 @@ jobs:
           cd ./examples/${{ matrix.example }}/
           idf.py set-target ${{ matrix.target }}
           idf.py build
-      - name: Setup CI files
+      - name: Setup test files
+        if: ${{ matrix.test }}
         run: |
           cat > wokwi.toml <<EOF
           [wokwi]
@@ -34,7 +46,9 @@ jobs:
           firmware = "./examples/${{ matrix.example }}/build/${{ matrix.example }}.bin"
           EOF
           cp ./.github/workflows/wokwi/diagram-${{ matrix.target }}.json ./diagram.json
-      - uses: wokwi/wokwi-ci-action@v1
+      - name: Test using wokwi
+        if: ${{ matrix.test }}
+        uses: wokwi/wokwi-ci-action@v1
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 5000

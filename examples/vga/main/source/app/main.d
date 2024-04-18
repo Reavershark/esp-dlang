@@ -53,11 +53,5 @@ extern(C) void d_main()
     while (true)
     {
         (() @trusted => vTaskSuspend(null))();
-
-        version (CI)
-        {
-            printf("@CI, all is good!\n");
-            break;
-        }
     }
 }
