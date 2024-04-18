@@ -6,5 +6,6 @@ extern(C)
 void app_main()
 {
     printf("Hello from dlang!\n");
-    printf("@CI, all is good!\n");
+
+    version(CI) printf("@CI, all is good!\n");
 }
