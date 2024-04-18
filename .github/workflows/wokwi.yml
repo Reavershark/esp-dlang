@@ -7,6 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        example: [example]
         target: [esp32, esp32s2, esp32s3]
     runs-on: ubuntu-latest
     container:
@@ -16,12 +17,12 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: Build examples/example
+      - name: Build examples/${{ matrix.example }}
         run: |
           export HOME=/root
           source /opt/esp-idf/export.sh >/dev/null
           ulimit -n 4096
-          cd ./examples/example/
+          cd ./examples/${{ matrix.example }}/
           idf.py set-target ${{ matrix.target }}
           idf.py build
       - name: Setup CI files
@@ -29,8 +30,8 @@ jobs:
           cat > wokwi.toml <<EOF
           [wokwi]
           version = 1
-          elf = "./examples/example/build/example.elf"
-          firmware = "./examples/example/build/example.bin"
+          elf = "./examples/${{ matrix.example }}/build/${{ matrix.example }}.elf"
+          firmware = "./examples/${{ matrix.example }}/build/${{ matrix.example }}.bin"
           EOF
           cp ./.github/workflows/wokwi/diagram-${{ matrix.target }}.json ./diagram.json
       - uses: wokwi/wokwi-ci-action@v1
