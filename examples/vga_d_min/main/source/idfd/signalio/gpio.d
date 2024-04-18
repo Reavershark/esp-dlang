@@ -2,6 +2,8 @@ module idfd.signalio.gpio;
 
 import idfd.signalio.signal : Signal;
 
+@safe:
+
 struct GPIOPin
 {
     enum FIRST_PIN = 0;

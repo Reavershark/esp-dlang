@@ -1,5 +1,8 @@
 module app.color;
 
+@safe:
+// dfmt off
+
 struct Color
 {
     ubyte m_value;
@@ -21,6 +24,6 @@ struct Color
 
     auto opBinary(string op)(const Color rhs) const
     {
-        return mixin("Color(m_value" ~ op ~ "rhs.m_value)");
+        return mixin("Color(m_value " ~ op ~ " rhs.m_value)");
     }
 }

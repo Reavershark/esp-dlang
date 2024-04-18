@@ -1,5 +1,7 @@
 module idfd.signalio.signal;
 
+@safe:
+
 struct Signal
 {
     uint m_signal;

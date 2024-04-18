@@ -16,6 +16,36 @@ template imported(string moduleName)
     mixin("import imported = " ~ moduleName ~ ";");
 }
 
+void destroy(bool initialize = true, T)(ref T obj)
+if (is(T == struct))
+{
+    import core.internal.destruction : destructRecurse;
+
+    destructRecurse(obj);
+
+    static if (initialize)
+    {
+        import core.internal.lifetime : emplaceInitializer;
+        emplaceInitializer(obj); // emplace T.init
+    }
+}
+
+/// ditto
+void destroy(bool initialize = true, T)(ref T obj)
+if (__traits(isStaticArray, T))
+{
+    foreach_reverse (ref e; obj[])
+        destroy!initialize(e);
+}
+
+/// ditto
+void destroy(bool initialize = true, T)(ref T obj)
+if (!is(T == struct) && !is(T == interface) && !is(T == class) && !__traits(isStaticArray, T))
+{
+    static if (initialize)
+        obj = T.init;
+}
+
 /**
  * The compiler lowers expressions of `cast(TTo[])TFrom[]` to
  * this implementation. Note that this does not detect alignment problems.

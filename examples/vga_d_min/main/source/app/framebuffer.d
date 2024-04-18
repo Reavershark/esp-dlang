@@ -7,6 +7,8 @@ import idfd.util;
 
 import idf.heap.caps : MALLOC_CAP_DMA;
 
+@safe:
+
 struct FrameBuffer
 {
     private const VideoTimings* m_vt;
@@ -53,6 +55,11 @@ struct FrameBuffer
         foreach(lineBuffer; m_lineBuffers)
             dfree(lineBuffer);
         dfree(m_lineBuffers);
+    }
+
+    Color[][] linesWithSync() pure
+    {
+        return m_lineBuffers;
     }
 
     Color[] getLineWithSync(in uint y) pure

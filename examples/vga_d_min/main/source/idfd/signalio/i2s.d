@@ -12,13 +12,24 @@ import idf.soc.periph_defs : PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE, periph_modu
 
 import ldc.attributes : optStrategy;
 
+@safe:
+
 i2s_dev_t*[] i2sDevices = [&I2S0, &I2S1];
 
 extern (C) alias FinishClockSetupCFuncType = void function(i2s_dev_t*);
 extern (C) alias StartTransmittingCFuncType = void function(i2s_dev_t*, lldesc_t*);
 
-FinishClockSetupCFuncType finishClockSetupCFunc;
-StartTransmittingCFuncType startTransmittingCFunc;
+shared FinishClockSetupCFuncType finishClockSetupCFunc;
+shared StartTransmittingCFuncType startTransmittingCFunc;
+
+extern(C) void linkI2SCFuncs(
+    FinishClockSetupCFuncType finishClockSetupCFunc,
+    StartTransmittingCFuncType startTransmittingCFunc
+)
+{
+    .finishClockSetupCFunc = finishClockSetupCFunc;
+    .startTransmittingCFunc = startTransmittingCFunc;
+}
 
 struct I2SSignalGenerator
 {
@@ -60,7 +71,8 @@ struct I2SSignalGenerator
         immutable periph_module_t[] modules = [
             PERIPH_I2S0_MODULE, PERIPH_I2S1_MODULE
         ];
-        periph_module_enable(modules[m_i2sIndex]);
+        const periph_module_t m = modules[m_i2sIndex];
+        (() @trusted => periph_module_enable(m))();
     }
 
     private void reset() pure
@@ -106,8 +118,11 @@ struct I2SSignalGenerator
         while (sdm < 0x8c0ecL && odir < 31 && sdmn < 0xA1fff);
         if (sdm > 0xA1fff)
             sdm = 0xA1fff;
-        rtc_clk_apll_enable(true);
-        rtc_clk_apll_coeff_set(odir, sdm & 255, (sdm >> 8) & 255, sdm >> 16);
+
+        () @trusted {
+            rtc_clk_apll_enable(true);
+            rtc_clk_apll_coeff_set(odir, sdm & 255, (sdm >> 8) & 255, sdm >> 16);
+        }();
 
         finishClockSetupCFunc(m_i2sDev);
     }
@@ -132,7 +147,7 @@ struct I2SSignalGenerator
     }
 
     // Todo: Should return refcounted
-    Signal[] getSignals() const
+    UniqueHeapArray!Signal getSignals() const
     {
         Signal[] signals = dallocArray!Signal(m_bitCount);
 
@@ -153,8 +168,7 @@ struct I2SSignalGenerator
                 break;
             }
         }
-
-        return signals;
+        return UniqueHeapArray!Signal(move(signals));
     }
 
     /** 

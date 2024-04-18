@@ -22,11 +22,14 @@ void startTransmittingCFunc(volatile i2s_dev_t *i2s, lldesc_t *dmaBufferDescript
 	i2s->conf.tx_start = 1;
 }
 
-extern void d_main(
+extern void linkI2SCFuncs(
 	void finishClockSetupCFunc(volatile i2s_dev_t *i2s),
-	void startTransmittingCFunc(i2s_dev_t *, lldesc_t *));
+	void startTransmittingCFunc(i2s_dev_t *, lldesc_t *)
+);
+extern void d_main(void);
 
 void app_main(void)
 {
-	d_main(&finishClockSetupCFunc, &startTransmittingCFunc);
+	linkI2SCFuncs(&finishClockSetupCFunc, &startTransmittingCFunc);
+	d_main();
 }
