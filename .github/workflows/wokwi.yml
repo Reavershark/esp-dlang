@@ -38,4 +38,4 @@ jobs:
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 5000
-          expect_text: 'Hello from dlang!'
+          expect_text: '@CI, all is good!'

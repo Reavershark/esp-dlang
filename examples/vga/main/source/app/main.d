@@ -48,6 +48,9 @@ extern(C) void d_main()
 
     signalGenerator.startTransmitting(dmaDescriptorRing.firstDescriptor);
 
+    printf("Initialization complete");
+    printf("@CI, all is good!\n");
+
     while (true)
     {
         (() @trusted => vTaskSuspend(null))();
