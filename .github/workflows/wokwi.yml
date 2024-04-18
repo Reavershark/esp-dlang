@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [hello_world]
+        example: [hello_world, vga]
         target: [esp32, esp32s2, esp32s3]
     runs-on: ubuntu-latest
     container:
