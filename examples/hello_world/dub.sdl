@@ -1,0 +1,11 @@
+name "hello_world"
+targetType "staticLibrary"
+
+buildRequirements "allowWarnings"
+
+postBuildCommands \
+    "rm idf-project/${DUB_BUILD_TYPE}/dcode.a &>/dev/null || true" \
+    "(echo lib${DUB_PACKAGE}.a && dub describe --data=linker-files) | xargs ar -rcT idf-project/${DUB_BUILD_TYPE}/dcode.a" \
+    "cd idf-project/${DUB_BUILD_TYPE} && idf.py build"
+
+dflags "-betterC -mcpu=esp32"
