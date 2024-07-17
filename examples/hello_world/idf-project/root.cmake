@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(hello_world)
 
-include($ENV{IDF_PATH}/tools/cmake/version.cmake)
 if (${IDF_VERSION_MAJOR} GREATER_EQUAL 5)
     target_link_libraries("${PROJECT_NAME}.elf" PRIVATE "${PROJECT_DIR}/dcode.a")
 else()
