@@ -4,7 +4,7 @@ targetType "staticLibrary"
 buildRequirements "allowWarnings"
 
 preBuildCommands \
-    "cd idf-project/${DUB_BUILD_TYPE} && ([ -e build ] || idf.py configure) || true"
+    "cd idf-project/${DUB_BUILD_TYPE} && ([ -f build/config/sdkconfig.h ] || idf.py configure) || true"
 postBuildCommands \
     "rm idf-project/${DUB_BUILD_TYPE}/dcode.a &>/dev/null || true" \
     "(echo lib${DUB_PACKAGE}.a && dub describe --data=linker-files) | xargs ar -rcT idf-project/${DUB_BUILD_TYPE}/dcode.a" \
