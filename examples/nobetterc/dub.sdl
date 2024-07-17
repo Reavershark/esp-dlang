@@ -1,0 +1,37 @@
+name "tscherm"
+targetType "staticLibrary"
+
+dependency "nobetterc" version="~master" repository="git+https://github.com/Reavershark/nobetterc"
+subConfiguration "nobetterc" "classes"
+
+
+buildRequirements "allowWarnings" // Allow unknown target warning
+
+// General flags
+dflags \
+    "--checkaction=C" \
+    "--linkonce-templates" \
+    "--fno-moduleinfo"
+
+// Preview flags
+dflags \
+    "--preview=dip1000" \
+    "--preview=dip1008" \
+    "--preview=dip1021" \
+    "--preview=bitfields" \
+    "--preview=fixAliasThis" \
+    "--preview=fixImmutableConv" \
+    "--preview=rvaluerefparam" \
+    "--preview=in"
+
+buildType "debug" {
+    dflags "--gc" // Generate C-like debug info
+}
+
+// Build idf project
+preBuildCommands \
+    "cd idf-project/${DUB_BUILD_TYPE} && ([ -f build/config/sdkconfig.h ] || idf.py configure) || true"
+postBuildCommands \
+    "rm idf-project/${DUB_BUILD_TYPE}/dcode.a &>/dev/null || true" \
+    "(echo lib${DUB_PACKAGE}.a && dub describe --data=linker-files) | xargs ar -rcT idf-project/${DUB_BUILD_TYPE}/dcode.a" \
+    "cd idf-project/${DUB_BUILD_TYPE} && idf.py build"
