@@ -11,15 +11,15 @@ jobs:
           - example: hello_world
             target: esp32
             test: true
+            expect_text: "Hello from D!"
           - example: hello_world
             target: esp32s2
             test: true
+            expect_text: "Hello from D!"
           - example: hello_world
             target: esp32s3
             test: true
-          - example: vga
-            target: esp32
-            test: false
+            expect_text: "Hello from D!"
     runs-on: ubuntu-latest
     container:
       image: jmeeuws/esp-dlang
@@ -34,16 +34,16 @@ jobs:
           source /opt/esp-idf/export.sh >/dev/null
           ulimit -n 4096
           cd ./examples/${{ matrix.example }}/
-          idf.py set-target ${{ matrix.target }}
-          idf.py build
+          (cd ./idf-project/debug/ && idf.py set-target ${{ matrix.target }}) 
+          dub build --deep --arch=xtensa-esp32-none-elf
       - name: Setup test files
         if: ${{ matrix.test }}
         run: |
           cat > wokwi.toml <<EOF
           [wokwi]
-          version = 1
-          elf = "./examples/${{ matrix.example }}/build/${{ matrix.example }}.elf"
-          firmware = "./examples/${{ matrix.example }}/build/${{ matrix.example }}.bin"
+          version  = 1
+          elf      = "./examples/${{ matrix.example }}/idf-project/debug/build/${{ matrix.example }}.elf"
+          firmware = "./examples/${{ matrix.example }}/idf-project/debug/build/${{ matrix.example }}.bin"
           EOF
           cp ./.github/workflows/wokwi/diagram-${{ matrix.target }}.json ./diagram.json
       - name: Test using wokwi
@@ -52,4 +52,4 @@ jobs:
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
           timeout: 5000
-          expect_text: '@CI, all is good!'
+          expect_text: "${{ matrix.expect_text }}"
