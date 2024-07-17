@@ -23,5 +23,5 @@ void app_main()
         i++;
     }
 
-    printf("Allocated %d blocks of 1024 bytes on the heap\n", i);
+    printf("Blocks of 1024 bytes allocated on the heap: %d\n", i);
 }

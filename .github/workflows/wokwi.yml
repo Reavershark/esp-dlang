@@ -20,6 +20,33 @@ jobs:
             target: esp32s3
             test: true
             expect_text: "Hello from D!"
+
+          - example: malloc
+            target: esp32
+            test: true
+            expect_text: "Blocks of 1024 bytes allocated on the heap"
+          - example: malloc
+            target: esp32s2
+            test: true
+            expect_text: "Blocks of 1024 bytes allocated on the heap"
+          - example: malloc
+            target: esp32s3
+            test: true
+            expect_text: "Blocks of 1024 bytes allocated on the heap"
+
+          - example: nobetterc
+            target: esp32
+            test: true
+            expect_text: "Some fibonacci numbers: 1 1 2 3 5 8 13 21"
+          - example: nobetterc
+            target: esp32s2
+            test: true
+            expect_text: "Some fibonacci numbers: 1 1 2 3 5 8 13 21"
+          - example: nobetterc
+            target: esp32s3
+            test: true
+            expect_text: "Some fibonacci numbers: 1 1 2 3 5 8 13 21"
+
     runs-on: ubuntu-latest
     container:
       image: jmeeuws/esp-dlang
