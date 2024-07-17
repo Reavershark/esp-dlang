@@ -3,16 +3,11 @@ targetType "staticLibrary"
 
 buildRequirements "allowWarnings"
 
+dflags "--betterC"
+
 preBuildCommands \
     "cd idf-project/${DUB_BUILD_TYPE} && ([ -f build/config/sdkconfig.h ] || idf.py configure) || true"
 postBuildCommands \
     "rm idf-project/${DUB_BUILD_TYPE}/dcode.a &>/dev/null || true" \
     "(echo lib${DUB_PACKAGE}.a && dub describe --data=linker-files) | xargs ar -rcT idf-project/${DUB_BUILD_TYPE}/dcode.a" \
     "cd idf-project/${DUB_BUILD_TYPE} && idf.py build"
-
-dflags "--betterC"
-
-configuration "esp32" {
-    // Use with "dub build --deep --config=esp32 --arch=xtensa-esp32-elf"
-    dflags "--mcpu=esp32"
-}
