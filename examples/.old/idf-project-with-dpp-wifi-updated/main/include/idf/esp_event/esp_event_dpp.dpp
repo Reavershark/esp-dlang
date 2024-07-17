@@ -1,4 +1,0 @@
-// vim: ft=d
-module idf.esp_event.includes_dpp;
-
-#include "esp_event.h"

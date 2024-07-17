@@ -1,4 +1,0 @@
-// vim: ft=d
-module idf.driver.dac_continuous.dac_continuous_dpp;
-
-#include <driver/dac_continuous.h>
