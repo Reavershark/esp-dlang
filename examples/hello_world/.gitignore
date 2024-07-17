@@ -1,5 +1,5 @@
-/build
-/sdkconfig
+/idf-project/*/build
+/idf-project/*/sdkconfig
 
 .dub
 *.a
