@@ -18,6 +18,8 @@ def list_esp_idf_include_paths() -> List[str]:
         component_dir = Path(json_component["dir"])
         res.append(Path(component_dir, "include"))
         for extra_include_path_str in json_component["include_dirs"]:
+            if extra_include_path_str == "include":
+                continue # Already added by default
             extra_include_path = Path(extra_include_path_str)
             if extra_include_path.is_absolute():
                 res.append(extra_include_path)
