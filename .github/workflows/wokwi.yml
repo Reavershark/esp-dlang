@@ -57,6 +57,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build examples/${{ matrix.example }}
         run: |
+          env
           export HOME=/root
           source /opt/esp-idf/export.sh >/dev/null
           ulimit -n 4096
