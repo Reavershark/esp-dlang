@@ -58,8 +58,9 @@ jobs:
       - name: Build examples/${{ matrix.example }}
         run: |
           export HOME=/root
-          source /opt/esp-idf/export.sh >/dev/null
+          export PATH="/opt/ldc/bin:$PATH"
           ulimit -n 4096
+          source /opt/esp-idf/export.sh >/dev/null
           cd ./examples/${{ matrix.example }}/
           (cd ./idf-project/debug/ && idf.py set-target ${{ matrix.target }}) 
           dub build --deep --arch=xtensa-esp32-none-elf
