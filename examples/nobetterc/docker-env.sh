@@ -10,7 +10,6 @@ DOCKER_RUN_ARGS+=" --ulimit=nofile=8192"
 IMAGE="jmeeuws/esp-dlang:latest"
 
 INIT_SCRIPT=" \
-echo Installing jq && apt-get update && apt-get -y install jq && \
 echo Sourcing /opt/esp-idf/export.sh && source /opt/esp-idf/export.sh >/dev/null && \
 bash \
 "
