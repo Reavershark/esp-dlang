@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-depot build . --push -t jmeeuws/esp-dlang:v2.0.2_ldc-v1.37.0_llvm-esp-16.0.4-20231113_esp-idf-v5.2.1
-depot build . --push -t jmeeuws/esp-dlang:v2.0.2
-depot build . --push -t jmeeuws/esp-dlang:v2.0
-depot build . --push -t jmeeuws/esp-dlang:v2
-depot build . --push -t jmeeuws/esp-dlang:latest
+set -e
+docker build . --push -t jmeeuws/esp-dlang:v2.1.0_ldc-xtensa-v1.39_esp-idf-v4.8.8
+docker build . --push -t jmeeuws/esp-dlang:v2.1.0
+docker build . --push -t jmeeuws/esp-dlang:v2.1
+docker build . --push -t jmeeuws/esp-dlang:v2
+docker build . --push -t jmeeuws/esp-dlang:latest
